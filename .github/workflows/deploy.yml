@@ -1,4 +1,4 @@
-name: Deploy React to cPanel Domain
+name: Deploy React (Vite) to cPanel Domain
 
 on:
   push:
@@ -24,17 +24,13 @@ jobs:
 
     # Step 3: Install Dependencies
     - name: Install Dependencies
-      run: |
-        echo "Installing dependencies..."
-        cd nexoraspace-frontend
-        npm install
+      working-directory: nexoraspace-frontend
+      run: npm install
 
-    # Step 4: Build React App
-    - name: Build React App
-      run: |
-        echo "Building React App..."
-        cd nexoraspace-frontend
-        npm run build
+    # Step 4: Build Vite App (dist folder)
+    - name: Build Vite App
+      working-directory: nexoraspace-frontend
+      run: npm run build
 
     # Step 5: Install Rsync & SSH Tools
     - name: Install Rsync & SSH Tools
@@ -48,7 +44,7 @@ jobs:
         echo "Deploying files to cPanel..."
         rsync -avz --delete --exclude='.git/' --exclude='.htaccess' --exclude='.env' \
         -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
-        nexoraspace-frontend/build/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
+        ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
 
     # Step 7: Confirm Deployment
     - name: Confirm Deployment
