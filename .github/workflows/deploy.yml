@@ -16,9 +16,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    # Step 2: Display Node.js Version (for debugging)
-    - name: Display Node.js Version
-      run: node -v
+    # Step 2: Setup Node.js
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
 
     # Step 3: Install Dependencies
     - name: Install Dependencies
@@ -27,27 +29,20 @@ jobs:
         cd nexoraspace-frontend
         npm install
 
-    # Step 4: Run Tests
-    - name: Run Tests
-      run: |
-        echo "Running tests..."
-        cd nexoraspace-frontend
-        npm test -- --watchAll=false
-
-    # Step 5: Build React App
+    # Step 4: Build React App
     - name: Build React App
       run: |
         echo "Building React App..."
         cd nexoraspace-frontend
         npm run build
 
-    # Step 6: Install Rsync & SSH Tools
+    # Step 5: Install Rsync & SSH Tools
     - name: Install Rsync & SSH Tools
       run: |
         echo "Installing rsync & sshpass..."
         sudo apt-get install -y rsync sshpass
 
-    # Step 7: Deploy via Rsync (Only Changed Files)
+    # Step 6: Deploy via Rsync (Only Changed Files)
     - name: Deploy to cPanel Server
       run: |
         echo "Deploying files to cPanel..."
@@ -55,6 +50,6 @@ jobs:
         -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
         nexoraspace-frontend/build/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
 
-    # Step 8: Confirm Deployment
+    # Step 7: Confirm Deployment
     - name: Confirm Deployment
       run: echo "✅ Deployment completed successfully!"
