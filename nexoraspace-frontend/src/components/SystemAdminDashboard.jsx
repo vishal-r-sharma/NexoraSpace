@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import SystemAdminNavbar from "./SystemAdminNavbar";
+import { useNavigate } from "react-router-dom";
+
 
 const companiesData = [
   { id: 1, name: "NexoraSpace Pvt Ltd.", uid: "U47734TS2024PTC182276", nid: "NEX123456", status: "Active", logo: "/logo-white.svg" },
@@ -14,6 +16,9 @@ const companiesData = [
 ];
 
 export default function SystemAdminDashboard() {
+
+  const navigate = useNavigate();
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [visibleCount, setVisibleCount] = useState(6);
@@ -114,8 +119,8 @@ export default function SystemAdminDashboard() {
                 <img src={company.logo} alt={company.name} className="h-10 w-auto object-contain" />
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-semibold ${company.status === "Active"
-                      ? "bg-green-600 text-white"
-                      : "bg-red-600 text-white"
+                    ? "bg-green-600 text-white"
+                    : "bg-red-600 text-white"
                     }`}
                 >
                   {company.status}
@@ -129,7 +134,10 @@ export default function SystemAdminDashboard() {
               </div>
 
               <div className="flex justify-end mt-5">
-                <button className="border border-gray-600 px-4 py-2 rounded-md text-sm font-medium hover:bg-yellow-400 hover:text-black transition">
+                <button
+                  onClick={() => navigate("/system/company-profile")}
+
+                  className="border border-gray-600 px-4 py-2 rounded-md text-sm font-medium hover:bg-yellow-400 hover:text-black transition">
                   Manage
                 </button>
               </div>

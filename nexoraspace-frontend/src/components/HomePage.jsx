@@ -53,7 +53,7 @@ export default function HomePage() {
 
                     {/* CTA Login */}
                     <button
-                        onClick={() => navigate("/system/dashboard")}
+                        onClick={() => navigate("/system/login")}
                         className="px-6 py-2 rounded-full bg-yellow-500 text-black font-semibold hover:shadow-lg hover:shadow-yellow-400/40 transition">
                         Login
                     </button>
