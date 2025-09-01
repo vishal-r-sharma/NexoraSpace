@@ -22,7 +22,7 @@ const SystemAdminNavbar = () => {
       {/* Buttons */}
       <div className="flex flex-wrap justify-center sm:justify-end gap-3 mt-3 sm:mt-0">
         <button
-          onClick={() => navigate("/add-company")}
+          onClick={() => navigate("/system/add-company")}
           className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-md bg-yellow-400 text-black text-sm font-semibold hover:scale-105 transition"
         >
           <PlusCircle size={18} /> {/* ✅ Add icon */}
@@ -30,6 +30,7 @@ const SystemAdminNavbar = () => {
         </button>
 
         <button
+          onClick={() => navigate("/")}
           className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-md bg-red-400 text-black text-sm font-semibold hover:scale-105 transition"
         >
           <LogOut size={18} /> {/* ✅ Logout icon */}
