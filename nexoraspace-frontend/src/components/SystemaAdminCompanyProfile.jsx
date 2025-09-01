@@ -225,14 +225,6 @@ export default function SystemAdminCompanyProfile() {
 
           {/* Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-end">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              type="submit"
-              className="px-4 sm:px-6 py-2 rounded-lg bg-yellow-500 text-black font-semibold hover:bg-yellow-400 transition text-sm sm:text-base"
-            >
-              Save Changes
-            </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.03 }}
@@ -242,6 +234,15 @@ export default function SystemAdminCompanyProfile() {
               className="px-4 sm:px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-500 transition text-sm sm:text-base"
             >
               Delete Company
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              type="submit"
+              className="px-4 sm:px-6 py-2 rounded-lg bg-yellow-500 text-black font-semibold hover:bg-yellow-400 transition text-sm sm:text-base"
+            >
+              Save Changes
             </motion.button>
           </div>
         </form>
