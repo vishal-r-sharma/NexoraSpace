@@ -1,7 +1,12 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+
 
 export default function SystemAdminLogin() {
+    const navigate = useNavigate();
+
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-100 px-4">
             {/* Card */}
@@ -63,7 +68,9 @@ export default function SystemAdminLogin() {
                     <motion.button
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
-                        type="submit"
+                        // type="submit"
+                        onClick={() => navigate("/system/dashboard")}
+
                         className="w-full py-3 rounded-lg bg-yellow-500 text-black font-semibold text-lg hover:bg-yellow-400 transition shadow-lg"
                     >
                         Login
