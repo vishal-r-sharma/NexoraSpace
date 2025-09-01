@@ -12,7 +12,7 @@ jobs:
     steps:
       # Step 1: Checkout Repository
       - name: Checkout Repository
-        uses: actions/checkout@v4   # 🔄 use latest version
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -20,15 +20,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-        node-version: 22.18.0
-        cache: npm
-        cache-dependency-path: nexoraspace-frontend/package-lock.json
-
+          node-version: 22.18.0
+          cache: npm
+          cache-dependency-path: nexoraspace-frontend/package-lock.json
 
       # Step 3: Install Dependencies
       - name: Install Dependencies
         working-directory: nexoraspace-frontend
-        run: npm ci   # ✅ cleaner, faster, reproducible
+        run: npm ci
 
       # Step 4: Build Vite App (dist folder)
       - name: Build Vite App
