@@ -34,7 +34,7 @@ export default function SystemAdminLogin() {
                 </h1>
 
                 {/* Form */}
-                <form className="space-y-5">
+                {/* <form className="space-y-5"> */}
                     <div>
                         <label
                             htmlFor="email"
@@ -75,7 +75,7 @@ export default function SystemAdminLogin() {
                     >
                         Login
                     </motion.button>
-                </form>
+                {/* </form> */}
             </motion.div>
         </div>
     );
