@@ -10,42 +10,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout Repository
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4   # 🔄 use latest version
+        with:
+          fetch-depth: 0
 
-    # Step 2: Setup Node.js
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 22.18.0
+      # Step 2: Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4   # 🔄 latest version
+        with:
+          node-version: 22.18.0
+          cache: npm  # ✅ speeds up installs
 
-    # Step 3: Install Dependencies
-    - name: Install Dependencies
-      working-directory: nexoraspace-frontend
-      run: npm install
+      # Step 3: Install Dependencies
+      - name: Install Dependencies
+        working-directory: nexoraspace-frontend
+        run: npm ci   # ✅ cleaner, faster, reproducible
 
-    # Step 4: Build Vite App (dist folder)
-    - name: Build Vite App
-      working-directory: nexoraspace-frontend
-      run: npm run build
+      # Step 4: Build Vite App (dist folder)
+      - name: Build Vite App
+        working-directory: nexoraspace-frontend
+        run: npm run build
 
-    # Step 5: Install Rsync & SSH Tools
-    - name: Install Rsync & SSH Tools
-      run: |
-        echo "Installing rsync & sshpass..."
-        sudo apt-get install -y rsync sshpass
+      # Step 5: Install Rsync & SSH Tools
+      - name: Install Rsync & SSH Tools
+        run: |
+          echo "Installing rsync & sshpass..."
+          sudo apt-get update -y
+          sudo apt-get install -y rsync sshpass
 
-    # Step 6: Deploy via Rsync (Only Changed Files)
-    - name: Deploy to cPanel Server
-      run: |
-        echo "Deploying files to cPanel..."
-        rsync -avz --delete --exclude='.git/' --exclude='.htaccess' --exclude='.env' \
-        -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
-        ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
+      # Step 6: Deploy via Rsync (Only Changed Files)
+      - name: Deploy to cPanel Server
+        run: |
+          echo "🚀 Deploying files to cPanel..."
+          rsync -avz --delete \
+            --exclude='.git/' \
+            --exclude='.htaccess' \
+            --exclude='.env' \
+            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
+            ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
 
-    # Step 7: Confirm Deployment
-    - name: Confirm Deployment
-      run: echo "✅ Deployment completed successfully!"
+      # Step 7: Confirm Deployment
+      - name: Confirm Deployment
+        run: echo "✅ Deployment completed successfully!"
