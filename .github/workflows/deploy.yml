@@ -18,10 +18,12 @@ jobs:
 
       # Step 2: Setup Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v4   # 🔄 latest version
+        uses: actions/setup-node@v4
         with:
-          node-version: 22.18.0
-          cache: npm  # ✅ speeds up installs
+        node-version: 22.18.0
+        cache: npm
+        cache-dependency-path: nexoraspace-frontend/package-lock.json
+
 
       # Step 3: Install Dependencies
       - name: Install Dependencies
