@@ -122,7 +122,7 @@ const SystemAdminAddCompany = () => {
           onSubmit={handleSubmit}
           className="bg-gray-800 shadow-md rounded-xl p-6 md:p-8 col-span-1 lg:col-span-3 space-y-6"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-center mb-6">
             Add New Company
           </h1>
 
@@ -448,24 +448,34 @@ const SystemAdminAddCompany = () => {
         </form>
 
         {/* Features Sidebar */}
-        <div className="w-full lg:w-full bg-gray-800 shadow-md rounded-xl p-6 h-fit sticky top-6 self-start">
-          <h2 className="font-semibold text-lg mb-4">Select Features</h2>
-          {Object.keys(features).map((featureKey) => (
-            <div key={featureKey} className="flex items-center mb-2">
-              <input
-                type="checkbox"
-                id={featureKey}
-                name={featureKey}
-                checked={features[featureKey]}
-                onChange={handleFeatureChange}
-                className="mr-2 accent-yellow-400"
-              />
-              <label htmlFor={featureKey} className="capitalize">
-                {featureKey.replace(/([A-Z])/g, " $1")}
+        <div className="w-full lg:w-full bg-gradient-to-br from-gray-800 to-gray-900 shadow-lg rounded-2xl p-6 h-fit sticky top-6 self-start border border-gray-700">
+          <h2 className="font-bold text-xl text-yellow-400 mb-5 tracking-wide">
+            ⚡ Select Features
+          </h2>
+
+          <div className="space-y-3">
+            {Object.keys(features).map((featureKey) => (
+              <label
+                key={featureKey}
+                htmlFor={featureKey}
+                className="flex items-center gap-3 cursor-pointer bg-gray-700/50 hover:bg-gray-700 transition rounded-lg px-3 py-2 group"
+              >
+                <input
+                  type="checkbox"
+                  id={featureKey}
+                  name={featureKey}
+                  checked={features[featureKey]}
+                  onChange={handleFeatureChange}
+                  className="h-5 w-5 rounded-md border-gray-600 bg-gray-800 text-yellow-400 focus:ring-yellow-400 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="capitalize text-gray-200 group-hover:text-yellow-300 transition">
+                  {featureKey.replace(/([A-Z])/g, " $1")}
+                </span>
               </label>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
       </div>
     </div>
   );
