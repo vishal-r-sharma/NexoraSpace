@@ -5,28 +5,37 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      REMOTE_USER: ${{ secrets.CPANEL_USERNAME }}
+      REMOTE_HOST: ${{ secrets.CPANEL_HOST }}
+      REMOTE_FRONTEND_DIR: /home/sewturbhe/nexoraspace.vishalsharmadev.in
+      REMOTE_BACKEND_DIR: /home/sewturbhe/api.nexoraspace.vishalsharmadev.in
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # FRONTEND (unchanged)
-      - name: Setup Node for Frontend
+      # ---------- FRONTEND ----------
+      - name: Setup Node.js (frontend)
         uses: actions/setup-node@v4
         with:
           node-version: 22.18.0
           cache: 'npm'
           cache-dependency-path: nexoraspace-frontend/package-lock.json
 
-      - name: Install Frontend Dependencies
+      - name: Install frontend dependencies
         working-directory: nexoraspace-frontend
         run: npm ci
 
-      - name: Build Frontend
+      - name: Build frontend (Vite)
         working-directory: nexoraspace-frontend
         run: npm run build
 
@@ -35,98 +44,114 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y rsync sshpass
 
-      - name: Deploy Frontend via rsync
+      - name: Deploy frontend via rsync
         run: |
+          echo "Deploying frontend to ${REMOTE_HOST}:${REMOTE_FRONTEND_DIR}"
           rsync -avz --delete \
             --exclude='.git/' \
-            --exclude='.htaccess' \
             --exclude='.env' \
-            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
-            ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
+            --exclude='node_modules/' \
+            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:${{ env.REMOTE_FRONTEND_DIR }}/
 
-      # BACKEND: copy + install + start/restart
-      - name: Setup Node for Backend (Actions runner)
+      # ---------- BACKEND (install locally then upload) ----------
+      - name: Setup Node.js (backend) on runner
         uses: actions/setup-node@v4
         with:
           node-version: 22.18.0
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Deploy Backend Files via rsync
+      - name: Install backend production dependencies locally (runner)
+        working-directory: backend
         run: |
+          echo "Installing backend production dependencies locally..."
+          npm ci --only=production
+
+      - name: (Optional) Run backend build locally if present
+        working-directory: backend
+        run: |
+          if npm run | grep -q " build"; then
+            echo "Running backend build locally..."
+            npm run build
+          else
+            echo "No backend build script detected; skipping local build."
+          fi
+
+      - name: Deploy backend (including node_modules) via rsync
+        run: |
+          echo "Deploying backend (including node_modules) to ${REMOTE_HOST}:${REMOTE_BACKEND_DIR}"
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='.env' \
-            --exclude='node_modules/' \
-            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
-            ./backend/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/api.nexoraspace.vishalsharmadev.in/
+            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            ./backend/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:${{ env.REMOTE_BACKEND_DIR }}/
 
-      - name: Remote install & start backend (detect Passenger or PM2)
+      # ---------- REMOTE: touch Passenger restart or pm2 reload/start ----------
+      - name: Remote post-deploy: build (if any) and restart app (Passenger or PM2)
         env:
-          REMOTE_USER: ${{ secrets.CPANEL_USERNAME }}
-          REMOTE_HOST: ${{ secrets.CPANEL_HOST }}
-          REMOTE_DIR: /home/sewturbhe/api.nexoraspace.vishalsharmadev.in
+          REMOTE_DIR: ${{ env.REMOTE_BACKEND_DIR }}
         run: |
-          echo "Running remote setup: npm ci, build (if any), and restart (Passenger or PM2)"
-          sshpass -p "${{ secrets.CPANEL_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} bash -l -c "
-            set -e
-            cd ${REMOTE_DIR} || { echo 'Remote path not found: ${REMOTE_DIR}'; exit 2; }
+          echo "Running remote post-deploy steps on ${REMOTE_HOST}..."
 
-            # Ensure correct NODE_ENV
+          sshpass -p "${{ secrets.CPANEL_PASSWORD }}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }} bash -l <<'SSH_EOF'
+            set -euo pipefail
+
+            REMOTE_DIR="${REMOTE_DIR:-/home/sewturbhe/api.nexoraspace.vishalsharmadev.in}"
+            echo "Remote dir: $REMOTE_DIR"
+
+            if [ ! -d "$REMOTE_DIR" ]; then
+              echo "Remote directory does not exist: $REMOTE_DIR"
+              exit 2
+            fi
+
+            cd "$REMOTE_DIR"
+
+            # Ensure production env for build/start
             export NODE_ENV=production
 
-            # Install production deps (fast)
-            if [ -f package-lock.json ] || [ -f package.json ]; then
-              echo 'Installing production dependencies...'
-              npm ci --only=production || { echo 'npm ci failed'; exit 3; }
+            # If you uploaded built files (e.g., dist) and have a build step, optionally run it on remote.
+            # This is a noop if no 'build' script exists.
+            if command -v npm >/dev/null 2>&1 && npm run | grep -q " build"; then
+              echo "Running remote 'npm run build'..."
+              npm run build || echo "Remote build failed (non-fatal if you built locally)."
             else
-              echo 'No package.json found; skipping npm install.'
+              echo "No remote build step or npm not available on remote; skipping remote build."
             fi
 
-            # Run backend build if present
-            if npm run | grep -q ' build'; then
-              echo 'Running npm run build...'
-              npm run build || { echo 'Build failed'; exit 4; }
-            else
-              echo 'No build script found; skipping build.'
-            fi
-
-            # PREFERRED: If Passenger (cPanel Node App Manager) is used, touching tmp/restart.txt triggers restart
-            if command -v passenger-config >/dev/null 2>&1 || command -v passenger >/dev/null 2>&1 || [ -d tmp ] || [ -f .htaccess ]; then
-              echo 'Attempting Passenger restart (touch tmp/restart.txt)...'
+            # Passenger (cPanel Application Manager) restart trigger
+            if [ -d tmp ] || [ -f passenger_wsgi.py ] || [ -f .htaccess ] || command -v passenger-config >/dev/null 2>&1 || command -v passenger >/dev/null 2>&1; then
+              echo "Triggering Passenger restart (touch tmp/restart.txt)..."
               mkdir -p tmp
               touch tmp/restart.txt
-              echo 'Passenger restart trigger created.'
-            fi
-
-            # FALLBACK / ALTERNATIVE: Use pm2 if available or install it and use it to start/restart your app
-            # Using package.json start script as entrypoint; name the process 'nexora-api' (change if you prefer)
-            APP_NAME='nexora-api'
-            if command -v pm2 >/dev/null 2>&1; then
-              echo 'pm2 found. Starting/restarting app via pm2...'
-              # If not already managed, start it, else reload/restart
-              if pm2 describe \"${APP_NAME}\" >/dev/null 2>&1; then
-                pm2 reload \"${APP_NAME}\" || pm2 restart \"${APP_NAME}\"
-              else
-                # Start using `npm start` so the same script runs as locally
-                pm2 start npm --name \"${APP_NAME}\" -- start
-              fi
-              pm2 save
-              echo 'pm2 restart completed.'
+              echo "Passenger restart triggered."
             else
-              # Try to install pm2 globally (if user has permission); otherwise skip
-              echo 'pm2 not found; attempting to install pm2 globally (may require permission)...'
-              if npm install -g pm2 --silent; then
-                pm2 start npm --name \"${APP_NAME}\" -- start
-                pm2 save
-                echo 'pm2 installed and app started.'
+              echo "Passenger not obviously present; skipping Passenger restart trigger."
+            fi
+
+            # PM2 restart fallback: attempt to reload or start via pm2 using 'npm start' entry
+            APP_NAME="nexora-api"
+            if command -v pm2 >/dev/null 2>&1; then
+              echo "pm2 found. Restarting/reloading app via pm2..."
+              if pm2 describe "$APP_NAME" >/dev/null 2>&1; then
+                pm2 reload "$APP_NAME" || pm2 restart "$APP_NAME"
               else
-                echo 'Could not install pm2. If Passenger is not used, you must set up a Node process manager (pm2) or cPanel Application Manager to run the app.'
+                pm2 start npm --name "$APP_NAME" -- start
+              fi
+              pm2 save || true
+              echo "pm2 restart completed."
+            else
+              echo "pm2 not found. Attempting to install pm2 globally (may fail on shared hosting)..."
+              if command -v npm >/dev/null 2>&1 && npm install -g pm2 --silent; then
+                pm2 start npm --name "$APP_NAME" -- start
+                pm2 save || true
+                echo "pm2 installed and app started."
+              else
+                echo "pm2 installation not possible or npm not available on remote. If the app isn't running after deploy, configure the Node app in cPanel Application Manager or install pm2 manually."
               fi
             fi
 
-            echo 'Remote deploy steps finished.'
-          "
+            echo "Remote post-deploy steps finished." SSH_EOF
 
-      - name: Confirm Deployment
-        run: echo "✅ Deployment steps finished (frontend + backend)."
+      - name: Confirm deployment finished
+        run: echo "✅ Deployment finished: frontend -> ${REMOTE_FRONTEND_DIR} and backend -> ${REMOTE_BACKEND_DIR}"
