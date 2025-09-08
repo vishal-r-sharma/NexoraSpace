@@ -1,4 +1,4 @@
-name: Deploy Frontend + Backend to cPanel (SSH key)
+name: Deploy Frontend + Backend to cPanel (simple)
 
 on:
   push:
@@ -12,18 +12,18 @@ jobs:
       CPANEL_USER: ${{ secrets.CPANEL_USERNAME }}
       FRONTEND_REMOTE_DIR: /home/sewturbhe/nexoraspace.vishalsharmadev.in
       BACKEND_REMOTE_DIR: /home/sewturbhe/api.nexoraspace.vishalsharmadev.in
-      API_HEALTH_URL: https://api.nexoraspace.vishalsharmadev.in/   # adjust if you use a different path
+      API_HEALTH_URL: https://api.nexoraspace.vishalsharmadev.in/
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js (for frontend build)
+      - name: Setup Node (for frontend build)
         uses: actions/setup-node@v4
         with:
-          node-version: 22.18.0
+          node-version: 22
           cache: npm
           cache-dependency-path: nexoraspace-frontend/package-lock.json
 
@@ -33,107 +33,64 @@ jobs:
           npm ci
           npm run build
 
-      - name: (Optional) Local backend build (if needed)
-        working-directory: backend
-        run: |
-          if [ -f package.json ]; then
-            npm ci
-            if npm run | grep -q "build"; then
-              npm run build
-            else
-              echo "No backend build script; skipping local backend build."
-            fi
-          else
-            echo "No backend/package.json found; skipping backend build."
-          fi
+      - name: Install rsync & ssh client
+        run: sudo apt-get update -y && sudo apt-get install -y rsync openssh-client
 
-      - name: Install rsync & openssh-client
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y rsync openssh-client
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.CPANEL_SSH_KEY }}
 
-      - name: Setup SSH key
-        env:
-          SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          # Add host key to known_hosts (helps avoid host verification prompts)
-          ssh-keyscan -H "${{ secrets.CPANEL_HOST }}" >> ~/.ssh/known_hosts || true
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: Deploy frontend via rsync
+      - name: Deploy frontend
         run: |
           rsync -avz --delete \
-            --exclude='.git/' \
-            --exclude='.env' \
-            --exclude='.htaccess' \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            --exclude='.git/' --exclude='.env' --exclude='.htaccess' \
+            -e "ssh -o StrictHostKeyChecking=no" \
             ./nexoraspace-frontend/dist/ ${CPANEL_USER}@${CPANEL_HOST}:${FRONTEND_REMOTE_DIR}/
 
-      - name: Deploy backend via rsync
+      - name: Deploy backend
         run: |
           rsync -avz --delete \
-            --exclude='.git/' \
-            --exclude='node_modules/' \
-            --exclude='.env' \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            --exclude='.git/' --exclude='node_modules/' --exclude='.env' \
+            -e "ssh -o StrictHostKeyChecking=no" \
             ./backend/ ${CPANEL_USER}@${CPANEL_HOST}:${BACKEND_REMOTE_DIR}/
 
-      - name: Remote install & restart backend (Passenger/pm2)
+      - name: Remote npm install & restart (Passenger-friendly)
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${CPANEL_USER}@${CPANEL_HOST} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${CPANEL_USER}@${CPANEL_HOST} << 'EOF'
             set -e
             APP_DIR=/home/sewturbhe/api.nexoraspace.vishalsharmadev.in
-
-            echo "Using app dir: $APP_DIR"
             cd "$APP_DIR" || (echo "App dir not found: $APP_DIR" && exit 1)
-
-            # Install production dependencies (prefer npm ci)
             if [ -f package-lock.json ] || [ -f package.json ]; then
-              if command -v npm >/dev/null 2>&1; then
-                npm ci --production || npm install --production
-              else
-                echo "npm not available on remote. Ensure Node.js is configured in cPanel."
-              fi
+              npm ci --production || npm install --production || true
             fi
-
-            # Touch Passenger restart file (cPanel commonly uses Passenger)
             mkdir -p tmp
-            touch tmp/restart.txt && echo "Touched tmp/restart.txt (Passenger should pick it up)."
-
-            # If pm2 is installed, attempt to restart or start the app using server.js
+            touch tmp/restart.txt || true
+            # Try pm2 if available
             if command -v pm2 >/dev/null 2>&1; then
               START_FILE=server.js
               if [ -f package.json ]; then
                 START_FILE=$(node -pe "JSON.parse(require('fs').readFileSync('package.json')).main || 'server.js'")
               fi
-              pm2 describe api-nexoraspace >/dev/null 2>&1 && pm2 restart api-nexoraspace || pm2 start "$START_FILE" --name api-nexoraspace
+              pm2 describe api-nexoraspace >/dev/null 2>&1 && pm2 restart api-nexoraspace || pm2 start "$START_FILE" --name api-nexoraspace || true
               pm2 save || true
-              echo "pm2 start/restart attempted."
             fi
-
-            echo "Remote post-deploy finished."
+            echo "remote deploy done"
           EOF
 
-      - name: Wait a moment before health check
-        run: sleep 3
-
-      - name: Health-check API (basic)
+      - name: Simple health check
         run: |
-          echo "Checking API health at ${API_HEALTH_URL} ..."
           for i in 1 2 3 4 5; do
             status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${API_HEALTH_URL}")
-            echo "Attempt $i — HTTP $status"
+            echo "Attempt $i - HTTP $status"
             if [ "$status" -ge 200 ] && [ "$status" -lt 500 ]; then
-              echo "API responded with $status — Assuming OK."
+              echo "API OK"
               exit 0
             fi
             sleep 2
           done
-          echo "API did not respond successfully after retries. Check server logs via cPanel."
+          echo "Health check failed"
           exit 1
 
-      - name: Confirm deployment
-        run: echo "✅ Frontend & Backend deployment steps finished."
+      - name: Done
+        run: echo "✅ Deployment finished"
