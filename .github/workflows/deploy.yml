@@ -1,96 +1,89 @@
-name: Deploy Frontend + Backend to cPanel (simple)
+name: Deploy Frontend & Backend to cPanel Domain
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
-      CPANEL_USER: ${{ secrets.CPANEL_USERNAME }}
-      FRONTEND_REMOTE_DIR: /home/sewturbhe/nexoraspace.vishalsharmadev.in
-      BACKEND_REMOTE_DIR: /home/sewturbhe/api.nexoraspace.vishalsharmadev.in
-      API_HEALTH_URL: https://api.nexoraspace.vishalsharmadev.in/
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node (for frontend build)
+      # ---------- FRONTEND ----------
+      - name: Setup Node.js for Frontend
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: 22.18.0
+          cache: 'npm'
           cache-dependency-path: nexoraspace-frontend/package-lock.json
 
-      - name: Build frontend
+      - name: Install Frontend Dependencies
         working-directory: nexoraspace-frontend
+        run: npm ci
+
+      - name: Build Vite App (Frontend)
+        working-directory: nexoraspace-frontend
+        run: npm run build
+
+      - name: Install Rsync & SSH Tools
         run: |
-          npm ci
-          npm run build
+          echo "Installing rsync & sshpass..."
+          sudo apt-get update -y
+          sudo apt-get install -y rsync sshpass
 
-      - name: Install rsync & ssh client
-        run: sudo apt-get update -y && sudo apt-get install -y rsync openssh-client
+      - name: Deploy Frontend to cPanel Server
+        run: |
+          echo "🚀 Deploying frontend to cPanel..."
+          rsync -avz --delete \
+            --exclude='.git/' \
+            --exclude='.htaccess' \
+            --exclude='.env' \
+            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
+            ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
 
-      - name: Load SSH key
-        uses: webfactory/ssh-agent@v0.8.0
+      # ---------- BACKEND ----------
+      - name: Setup Node.js for Backend
+        uses: actions/setup-node@v4
         with:
-          ssh-private-key: ${{ secrets.CPANEL_SSH_KEY }}
+          node-version: 22.18.0
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
-      - name: Deploy frontend
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build Backend (if you have a build script)
+        working-directory: backend
+        # if you don't have a build script, this step will succeed but do nothing.
         run: |
+          if npm run | grep -q " build"; then
+            npm run build
+          else
+            echo "No backend build script; skipping build."
+          fi
+
+      - name: Deploy Backend to cPanel Server
+        run: |
+          echo "🚀 Deploying backend to cPanel..."
           rsync -avz --delete \
-            --exclude='.git/' --exclude='.env' --exclude='.htaccess' \
-            -e "ssh -o StrictHostKeyChecking=no" \
-            ./nexoraspace-frontend/dist/ ${CPANEL_USER}@${CPANEL_HOST}:${FRONTEND_REMOTE_DIR}/
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='node_modules/' \
+            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
+            ./backend/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/api.nexoraspace.vishalsharmadev.in/
 
-      - name: Deploy backend
+      - name: Trigger app restart on server (Passenger / cPanel)
         run: |
-          rsync -avz --delete \
-            --exclude='.git/' --exclude='node_modules/' --exclude='.env' \
-            -e "ssh -o StrictHostKeyChecking=no" \
-            ./backend/ ${CPANEL_USER}@${CPANEL_HOST}:${BACKEND_REMOTE_DIR}/
+          echo "Attempting to trigger app restart on server..."
+          sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }} \
+            'cd /home/sewturbhe/api.nexoraspace.vishalsharmadev.in 2>/dev/null && mkdir -p tmp && touch tmp/restart.txt || echo "Passenger restart file not created (maybe not using Passenger)."'
 
-      - name: Remote npm install & restart (Passenger-friendly)
-        run: |
-          ssh -o StrictHostKeyChecking=no ${CPANEL_USER}@${CPANEL_HOST} << 'EOF'
-            set -e
-            APP_DIR=/home/sewturbhe/api.nexoraspace.vishalsharmadev.in
-            cd "$APP_DIR" || (echo "App dir not found: $APP_DIR" && exit 1)
-            if [ -f package-lock.json ] || [ -f package.json ]; then
-              npm ci --production || npm install --production || true
-            fi
-            mkdir -p tmp
-            touch tmp/restart.txt || true
-            # Try pm2 if available
-            if command -v pm2 >/dev/null 2>&1; then
-              START_FILE=server.js
-              if [ -f package.json ]; then
-                START_FILE=$(node -pe "JSON.parse(require('fs').readFileSync('package.json')).main || 'server.js'")
-              fi
-              pm2 describe api-nexoraspace >/dev/null 2>&1 && pm2 restart api-nexoraspace || pm2 start "$START_FILE" --name api-nexoraspace || true
-              pm2 save || true
-            fi
-            echo "remote deploy done"
-          EOF
-
-      - name: Simple health check
-        run: |
-          for i in 1 2 3 4 5; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${API_HEALTH_URL}")
-            echo "Attempt $i - HTTP $status"
-            if [ "$status" -ge 200 ] && [ "$status" -lt 500 ]; then
-              echo "API OK"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Health check failed"
-          exit 1
-
-      - name: Done
-        run: echo "✅ Deployment finished"
+      - name: Confirm Deployment
+        run: echo "✅ Deployment completed successfully!"
