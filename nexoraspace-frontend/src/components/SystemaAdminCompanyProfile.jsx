@@ -3,6 +3,9 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import SystemAdminNavbar from "./SystemAdminNavbar";
+// use your configured axios instance
+import api from "../api/axios";
+// import axios for isCancel helper
 import axios from "axios";
 
 /** same emptyForm and allowedFeatures as before */
@@ -63,13 +66,34 @@ export default function SystemAdminCompanyProfile() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalBody, setModalBody] = useState(null);
 
+  // open/close modal must be defined before effects use them
+  const openModal = ({ type = "info", title = "", body = null }) => {
+    setModalType(type);
+    setModalTitle(title);
+    setModalBody(body);
+    setShowModal(true);
+    // lock body scroll while modal open
+    document.body.style.overflow = "hidden";
+  };
+  const closeModal = () => {
+    setShowModal(false);
+    document.body.style.overflow = "";
+  };
+
   useEffect(() => {
     const controller = new AbortController();
 
     const fetchCompany = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`/api/company/${id}`, {
+        const url = `/api/company/${id}`;
+        // helpful debug in development
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.debug("[API] GET", (api.defaults.baseURL || "") + url);
+        }
+
+        const res = await api.get(url, {
           withCredentials: true,
           signal: controller.signal,
           headers: { Accept: "application/json" },
@@ -79,13 +103,20 @@ export default function SystemAdminCompanyProfile() {
         // preferred: { success: true, company: {...} }
         // fallback: res.data may directly be the company object
         let company = null;
-        if (res?.data) {
-          if (res.data.success && res.data.company) company = res.data.company;
-          else if (res.data.company) company = res.data.company;
-          else company = res.data; // fallback
+        const payload = res?.data;
+
+        // handle HTML fallback (index.html) — unlikely with correct proxy/baseURL
+        if (typeof payload === "string" && payload.trim().toLowerCase().startsWith("<!doctype")) {
+          throw new Error("Received HTML from API request — check API base or dev proxy.");
         }
 
-        if (!company) {
+        if (payload) {
+          if (payload.success && payload.company) company = payload.company;
+          else if (payload.company) company = payload.company;
+          else company = payload; // fallback
+        }
+
+        if (!company || typeof company !== "object") {
           throw new Error("Unexpected response shape from server while loading company.");
         }
 
@@ -139,6 +170,13 @@ export default function SystemAdminCompanyProfile() {
         // ignore abort errors
         if (axios.isCancel?.(err) || err?.name === "CanceledError") return;
 
+        // if server responded with HTML (index.html) detect and show friendly message
+        if (err?.response && typeof err.response.data === "string" && err.response.data.trim().toLowerCase().startsWith("<!doctype")) {
+          console.error("API returned HTML page (index.html). You probably need to set API_BASE or dev proxy.");
+          openModal({ type: "error", title: "Server misconfigured", body: "API returned HTML (index.html). Check API base URL or dev proxy." });
+          return;
+        }
+
         console.error("Error loading company:", err?.response?.data || err?.message || err);
         const status = err?.response?.status;
         if (status === 401) {
@@ -155,17 +193,13 @@ export default function SystemAdminCompanyProfile() {
     };
 
     fetchCompany();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      // ensure body scroll unlocked if component unmounts while modal open
+      document.body.style.overflow = "";
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  const openModal = ({ type = "info", title = "", body = null }) => {
-    setModalType(type);
-    setModalTitle(title);
-    setModalBody(body);
-    setShowModal(true);
-  };
-  const closeModal = () => setShowModal(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -272,7 +306,7 @@ export default function SystemAdminCompanyProfile() {
     const payload = preparePayload();
     setSaving(true);
     try {
-      const res = await axios.put(`/api/company/${id}`, payload, { withCredentials: true });
+      const res = await api.put(`/api/company/${id}`, payload, { withCredentials: true });
       // normalize response: prefer res.data.company, else res.data
       const data = res?.data;
       if (data?.success && data.company) {
@@ -302,6 +336,11 @@ export default function SystemAdminCompanyProfile() {
       openModal({ type: "success", title: "Saved", body: data?.message || "Company updated successfully." });
     } catch (err) {
       console.error("Update error:", err?.response?.data || err?.message || err);
+      // detect HTML response
+      if (err?.response && typeof err.response.data === "string" && err.response.data.trim().toLowerCase().startsWith("<!doctype")) {
+        openModal({ type: "error", title: "Server misconfigured", body: "API returned HTML (index.html). Check API base or dev proxy." });
+        return;
+      }
       const status = err?.response?.status;
       if (status === 401) {
         openModal({ type: "error", title: "Unauthorized", body: "Please login to perform this action." });
@@ -321,13 +360,18 @@ export default function SystemAdminCompanyProfile() {
 
     setDeleting(true);
     try {
-      const res = await axios.delete(`/api/company/${id}`, { withCredentials: true });
+      const res = await api.delete(`/api/company/${id}`, { withCredentials: true });
       const data = res?.data;
       openModal({ type: "success", title: "Deleted", body: data?.message || "Company deleted." });
       // redirect to dashboard after brief delay
       setTimeout(() => navigate("/system/dashboard"), 900);
     } catch (err) {
       console.error("Delete error:", err?.response?.data || err?.message || err);
+      // detect HTML response
+      if (err?.response && typeof err.response.data === "string" && err.response.data.trim().toLowerCase().startsWith("<!doctype")) {
+        openModal({ type: "error", title: "Server misconfigured", body: "API returned HTML (index.html). Check API base or dev proxy." });
+        return;
+      }
       const status = err?.response?.status;
       if (status === 401) {
         openModal({ type: "error", title: "Unauthorized", body: "Please login to perform this action." });

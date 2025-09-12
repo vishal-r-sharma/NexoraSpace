@@ -1,7 +1,8 @@
 // SystemAdminAddCompany.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+// use configured axios instance that respects VITE_API_URL / dev proxy
+import api from "../api/axios";
 import SystemAdminNavbar from "./SystemAdminNavbar";
 
 /**
@@ -247,19 +248,28 @@ const SystemAdminAddCompany = () => {
 
     setLoading(true);
     try {
-      // Send with credentials so auth middleware can verify session
-      const resp = await axios.post("/api/company/add", payload, {
+      // Use configured api instance so proxy / baseURL works
+      const resp = await api.post("/api/company/add", payload, {
         withCredentials: true,
         headers: {
-          "Accept": "application/json",
+          Accept: "application/json",
           "Content-Type": "application/json",
         },
       });
 
-      // Normalize server response: prefer { success:true, company: {...} }
+      // Defensive normalization of server response
       const data = resp?.data;
+
+      // detect HTML fallback (index.html) from dev proxy misconfig
+      if (typeof data === "string" && data.trim().toLowerCase().startsWith("<!doctype")) {
+        const msg = "Bad API response: received HTML. Check API base or dev proxy.";
+        console.error(msg);
+        openModal({ type: "error", title: "Server misconfigured", body: msg });
+        setLoading(false);
+        return;
+      }
+
       if (data && data.success && data.company) {
-        // success path (server returned created company)
         const created = data.company;
         if (created.loginPassword) delete created.loginPassword;
 
@@ -268,35 +278,50 @@ const SystemAdminAddCompany = () => {
         setFeatures(initialFeatures);
 
         openModal({ type: "success", title: "Company Created", body: { message: data.message || "Created", company: created } });
-      } else if (data && Array.isArray(data.companies)) {
-        // improbable for POST, but handle gracefully
-        setSuccessMsg("Company created (server returned companies array).");
-        openModal({ type: "success", title: "Company Created", body: data });
-        setFormData(initialFormData);
-        setFeatures(initialFeatures);
-      } else if (data && data.success) {
-        // success with no company: still treat as success
-        setSuccessMsg(data.message || "Company created.");
-        openModal({ type: "success", title: "Company Created", body: data });
-        setFormData(initialFormData);
-        setFeatures(initialFeatures);
-      } else {
-        // unexpected shape but 2xx status
-        openModal({ type: "success", title: "Company Created", body: data || "Company created." });
-        setFormData(initialFormData);
-        setFeatures(initialFeatures);
+        return;
       }
+
+      // handle if server returned success but no company object
+      if (data && data.success) {
+        setSuccessMsg(data.message || "Company created.");
+        setFormData(initialFormData);
+        setFeatures(initialFeatures);
+        openModal({ type: "success", title: "Company Created", body: data });
+        return;
+      }
+
+      // If server returns array (unlikely), handle gracefully
+      if (Array.isArray(data?.companies) || Array.isArray(data)) {
+        setSuccessMsg("Company created (server returned companies array).");
+        setFormData(initialFormData);
+        setFeatures(initialFeatures);
+        openModal({ type: "success", title: "Company Created", body: data });
+        return;
+      }
+
+      // unexpected but 2xx — show success with payload
+      openModal({ type: "success", title: "Company Created", body: data || "Company created." });
+      setFormData(initialFormData);
+      setFeatures(initialFeatures);
     } catch (err) {
-      // handle errors carefully
+      // Errors
       const status = err?.response?.status;
+      // detect HTML error body (SPA) so we can give a meaningful message
+      if (err?.response && typeof err.response.data === "string" && err.response.data.trim().toLowerCase().startsWith("<!doctype")) {
+        const msg = "API returned HTML page (index.html). Check API base or dev proxy.";
+        console.error(msg);
+        openModal({ type: "error", title: "Server misconfigured", body: msg });
+        setLoading(false);
+        return;
+      }
+
       if (status === 401) {
-        // unauthorized: redirect to login
         openModal({ type: "error", title: "Unauthorized", body: "You must be logged in to create a company." });
         navigate("/login");
         return;
       }
+
       if (status === 409 && err.response?.data) {
-        // duplicate key or conflict
         const msg = err.response.data.message || "Duplicate value";
         setServerErrors([msg]);
         openModal({ type: "error", title: "Conflict", body: msg });
@@ -308,7 +333,6 @@ const SystemAdminAddCompany = () => {
       let errorBody = "Unknown error occurred.";
       if (err.response && err.response.data) {
         const data = err.response.data;
-        // handle Joi-like details
         if (data.details && Array.isArray(data.details)) {
           errorBody = data.details.map((d) => d.message || JSON.stringify(d)).join("\n");
           setServerErrors(data.details.map((d) => d.message || JSON.stringify(d)));
