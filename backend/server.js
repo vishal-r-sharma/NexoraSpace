@@ -13,7 +13,7 @@ const app = express();
 
 
 // If behind proxy (Heroku / nginx), enable this so req.secure works
-app.set("trust proxy", 1);
+// app.set("trust proxy", 1);
 
 // Middleware
 app.use(express.json());
@@ -43,6 +43,25 @@ app.get("/system/dashboard", authMiddleware)
 app.get("/", (req, res) => {
   res.send("🚀 NexoraSpace Backend Running...");
 });
+
+
+
+// after `app.use('/api/company', companyRoutes)` and other api routers
+
+// 404 for API routes -> always JSON
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: 'API endpoint not found' });
+});
+
+// global error handler (ensures JSON for errors)
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  if (req.path.startsWith('/api')) {
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+  next(err); // allow non-api requests (e.g., SPA fallback) to be handled elsewhere
+});
+
 
 
 // Start server

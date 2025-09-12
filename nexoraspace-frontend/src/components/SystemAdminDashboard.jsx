@@ -7,81 +7,100 @@ import axios from "axios";
 export default function SystemAdminDashboard() {
   const navigate = useNavigate();
 
-  const [companies, setCompanies] = useState([]); // expected array
+  const [companies, setCompanies] = useState([]); // expected array from API: { success:true, companies: [...] }
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [visibleCount, setVisibleCount] = useState(6);
-  const [loading, setLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
   const loaderRef = useRef(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchCompanies = async () => {
+      setIsFetching(true);
+      setError(null);
       try {
         const res = await axios.get("/api/company/all", {
           withCredentials: true,
           timeout: 10000,
+          signal: controller.signal,
+          headers: {
+            Accept: "application/json",
+          },
         });
 
-        // Normalize response: support multiple server shapes
-        const payload = res && res.data;
-        console.log("DEBUG: /api/company/all response:", payload);
+        // Expect server shape: { success: true, companies: [...] }
+        const payload = res?.data;
+        // console.log("DEBUG: /api/company/all payload:", payload);
 
-        // Cases handled:
-        // 1) payload is an array -> use it
-        // 2) payload.data is an array -> use payload.data
-        // 3) payload.companies is an array -> use payload.companies
-        // 4) otherwise fallback to [] and log a warning
-        let arr = [];
-        if (Array.isArray(payload)) {
-          arr = payload;
-        } else if (payload && Array.isArray(payload.data)) {
-          arr = payload.data;
-        } else if (payload && Array.isArray(payload.companies)) {
-          arr = payload.companies;
-        } else if (payload && payload.success && Array.isArray(payload.result)) {
-          // some APIs return { success:true, result: [...] }
-          arr = payload.result;
-        } else {
-          // If server returned object with top-level company list keys, try to coerce:
-          // If object looks like a single company, wrap it in array
-          if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-            // Heuristic: if it has companyName or _id then assume single company
-            if (payload.companyName || payload._id || payload.cinNumber) {
-              arr = [payload];
-              console.warn("API returned single company object — wrapped into array.");
-            } else {
-              // Not any recognized shape — warn and fallback to empty array
-              console.warn("Unexpected /api/company/all response shape; expected array. Falling back to empty list.");
-              arr = [];
-            }
-          } else {
-            arr = [];
-          }
+        if (!payload) {
+          setCompanies([]);
+          setIsFetching(false);
+          return;
         }
 
-        setCompanies(arr);
-      } catch (err) {
-        console.error("Error fetching companies:", err && (err.response?.data || err.message));
-        // If unauthorized, redirect to login
-        const status = err?.response?.status;
-        if (status === 401) {
-          navigate("/login");
+        if (payload.success && Array.isArray(payload.companies)) {
+          // defensive: strip sensitive fields if present
+          const sanitized = payload.companies.map((c) => {
+            const copy = { ...c };
+            if (copy.loginPassword) delete copy.loginPassword;
+            return copy;
+          });
+          setCompanies(sanitized);
+        } else if (Array.isArray(payload)) {
+          // just in case API returns an array directly
+          const sanitized = payload.map((c) => {
+            const copy = { ...c };
+            if (copy.loginPassword) delete copy.loginPassword;
+            return copy;
+          });
+          setCompanies(sanitized);
         } else {
-          // show empty list but keep UI
+          // unexpected shape: fallback safely
+          console.warn("Unexpected /api/company/all response shape. Falling back to empty list.", payload);
           setCompanies([]);
         }
+      } catch (err) {
+        // handle cancelled fetch silently
+        if (axios.isCancel?.(err) || err?.name === "CanceledError") {
+          // fetch aborted
+          return;
+        }
+        const status = err?.response?.status;
+        if (status === 401) {
+          // not authenticated — redirect to login
+          navigate("/login");
+          return;
+        }
+        console.error("Error fetching companies:", err?.response?.data || err.message || err);
+        setError(err?.response?.data?.message || err.message || "Failed to load companies");
+        setCompanies([]);
+      } finally {
+        setIsFetching(false);
       }
     };
 
     fetchCompanies();
+
+    return () => {
+      // cancel the request if component unmounts
+      controller.abort();
+    };
   }, [navigate]);
 
   // Defensive: ensure companies is an array before filtering
   const companiesArray = Array.isArray(companies) ? companies : [];
 
+  // derive status options from returned companies for filter select
+  const derivedStatuses = Array.from(
+    new Set(companiesArray.map((c) => (c.status ? String(c.status).trim() : "Unknown")))
+  ).filter(Boolean);
+  const statusOptions = ["All", ...derivedStatuses];
+
   // Filtering logic with guards for missing fields
   const filteredCompanies = companiesArray.filter((company) => {
-    // guard getters and lowercase safely
     const safeToLower = (v) => (v ? String(v).toLowerCase() : "");
 
     const query = safeToLower(search);
@@ -92,21 +111,22 @@ export default function SystemAdminDashboard() {
     const matchFields = name.includes(query) || cin.includes(query) || reg.includes(query);
 
     const statusVal = safeToLower(company.status);
-    const matchStatus = filter === "All" ? true : statusVal === filter.toLowerCase();
+    const matchStatus = filter === "All" ? true : statusVal === safeToLower(filter);
 
     return matchFields && matchStatus;
   });
 
-  // Infinite scroll
+  // Infinite scroll: observe loaderRef and reveal more items
   useEffect(() => {
-    if (loading) return;
+    if (loadingMore) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && visibleCount < filteredCompanies.length) {
-          setLoading(true);
+          setLoadingMore(true);
+          // small simulated delay for UX
           setTimeout(() => {
             setVisibleCount((prev) => prev + 4);
-            setLoading(false);
+            setLoadingMore(false);
           }, 600);
         }
       },
@@ -114,37 +134,55 @@ export default function SystemAdminDashboard() {
     );
     if (loaderRef.current) observer.observe(loaderRef.current);
     return () => observer.disconnect();
-  }, [visibleCount, filteredCompanies.length, loading]);
+  }, [visibleCount, filteredCompanies.length, loadingMore]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <SystemAdminNavbar />
 
       <div className="flex justify-center items-center px-4 md:px-8 py-4">
-        <h1 className="text-lg md:text-2xl font-bold text-center">
-          SYSTEM ADMINISTRATOR DASHBOARD
-        </h1>
+        <h1 className="text-lg md:text-2xl font-bold text-center">SYSTEM ADMINISTRATOR DASHBOARD</h1>
       </div>
 
       <div className="flex justify-center mb-6 px-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center bg-gray-800 rounded-lg px-4 py-3 gap-3 w-full md:w-3/4 lg:w-2/3 shadow">
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              // reset visibleCount when filter changes
+              setVisibleCount(6);
+            }}
             className="px-3 py-2 rounded-md border border-gray-600 bg-gray-700 text-sm md:text-base w-full sm:w-auto"
           >
-            <option value="All">All</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
+
           <input
             type="text"
             placeholder="Search by Name, CIN, or Registration No."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setVisibleCount(6);
+            }}
             className="flex-1 px-3 py-2 rounded-md border border-gray-600 text-sm md:text-base focus:ring-2 focus:ring-yellow-400 outline-none bg-gray-700 w-full"
           />
         </div>
+      </div>
+
+      {/* Error or loading */}
+      <div className="px-4 md:px-8">
+        {isFetching && (
+          <p className="text-gray-400 text-sm md:text-base text-center">Loading companies...</p>
+        )}
+        {error && !isFetching && (
+          <p className="text-red-400 text-sm md:text-base text-center">Error: {error}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 px-4 md:px-8 pb-10">
@@ -161,19 +199,26 @@ export default function SystemAdminDashboard() {
                   className="h-10 w-auto object-contain"
                 />
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${company.status === "Active"
-                    ? "bg-green-600 text-white"
-                    : "bg-red-600 text-white"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    String(company.status).toLowerCase() === "active"
+                      ? "bg-green-600 text-white"
+                      : "bg-red-600 text-white"
+                  }`}
                 >
                   {company.status || "Unknown"}
                 </span>
               </div>
 
               <div className="mt-4 text-sm space-y-1">
-                <p><span className="font-semibold">Name:</span> {company.companyName || "-"}</p>
-                <p><span className="font-semibold">CIN:</span> {company.cinNumber || "-"}</p>
-                <p><span className="font-semibold">Reg No:</span> {company.registrationNumber || "-"}</p>
+                <p>
+                  <span className="font-semibold">Name:</span> {company.companyName || "-"}
+                </p>
+                <p>
+                  <span className="font-semibold">CIN:</span> {company.cinNumber || "-"}
+                </p>
+                <p>
+                  <span className="font-semibold">Reg No:</span> {company.registrationNumber || "-"}
+                </p>
               </div>
 
               <div className="flex justify-end mt-5">
@@ -187,17 +232,18 @@ export default function SystemAdminDashboard() {
             </div>
           ))
         ) : (
-          <p className="text-center col-span-full text-gray-400 text-sm md:text-base">
-            No companies found.
-          </p>
+          !isFetching &&
+          !error && (
+            <p className="text-center col-span-full text-gray-400 text-sm md:text-base">No companies found.</p>
+          )
         )}
       </div>
 
       <div ref={loaderRef} className="flex justify-center">
-        {loading && <p className="text-gray-400 pb-6">Loading more...</p>}
+        {loadingMore && <p className="text-gray-400 pb-6">Loading more...</p>}
       </div>
 
-      {visibleCount < filteredCompanies.length && !loading && (
+      {visibleCount < filteredCompanies.length && !loadingMore && (
         <div className="flex justify-center pb-10">
           <button
             onClick={() => setVisibleCount((prev) => prev + 4)}

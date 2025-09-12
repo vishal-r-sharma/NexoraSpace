@@ -6,14 +6,11 @@ import SystemAdminNavbar from "./SystemAdminNavbar";
 
 /**
  * SystemAdminAddCompany
- * - Converts directors (comma-separated) -> array
- * - Converts numeric fields to numbers
- * - Limits features to only: employeeManagement, projectManagement, billingSystem
- * - Sends POST to /api/company/add (adjust endpoint as needed)
- * - Displays basic client-side validation + server errors
- * - Shows a popup modal (success or error) after submit
- *
- * NOTE: install axios: npm install axios
+ * - Matches server routes: POST /api/company/add (server returns { success: true, company } on success)
+ * - Sends withCredentials: true so auth cookie/token is sent
+ * - Defensive normalization of server response shapes
+ * - Handles 401 (redirect to login) and 409 (duplicate) specially
+ * - Shows modal for success/error and uses inline messages
  */
 
 const initialFormData = {
@@ -72,11 +69,8 @@ const SystemAdminAddCompany = () => {
 
   // lock body scroll when modal open
   useEffect(() => {
-    if (showModal) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (showModal) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
     return () => {
       document.body.style.overflow = "";
     };
@@ -245,7 +239,6 @@ const SystemAdminAddCompany = () => {
     const clientValidationMsg = validateClientSide();
     if (clientValidationMsg) {
       setClientError(clientValidationMsg);
-      // also show modal for client-side validation if you want
       openModal({ type: "error", title: "Validation error", body: clientValidationMsg });
       return;
     }
@@ -254,25 +247,68 @@ const SystemAdminAddCompany = () => {
 
     setLoading(true);
     try {
-      // Adjust endpoint as necessary
+      // Send with credentials so auth middleware can verify session
       const resp = await axios.post("/api/company/add", payload, {
-        headers: { "Content-Type": "application/json" },
+        withCredentials: true,
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
       });
 
-      // Successful creation
-      setSuccessMsg("Company created successfully.");
-      // optionally clear form
-      setFormData(initialFormData);
-      setFeatures(initialFeatures);
+      // Normalize server response: prefer { success:true, company: {...} }
+      const data = resp?.data;
+      if (data && data.success && data.company) {
+        // success path (server returned created company)
+        const created = data.company;
+        if (created.loginPassword) delete created.loginPassword;
 
-      // show modal with server response (resp.data)
-      const body = resp.data ? resp.data : "Company created successfully.";
-      openModal({ type: "success", title: "Company Created", body });
+        setSuccessMsg("Company created successfully.");
+        setFormData(initialFormData);
+        setFeatures(initialFeatures);
+
+        openModal({ type: "success", title: "Company Created", body: { message: data.message || "Created", company: created } });
+      } else if (data && Array.isArray(data.companies)) {
+        // improbable for POST, but handle gracefully
+        setSuccessMsg("Company created (server returned companies array).");
+        openModal({ type: "success", title: "Company Created", body: data });
+        setFormData(initialFormData);
+        setFeatures(initialFeatures);
+      } else if (data && data.success) {
+        // success with no company: still treat as success
+        setSuccessMsg(data.message || "Company created.");
+        openModal({ type: "success", title: "Company Created", body: data });
+        setFormData(initialFormData);
+        setFeatures(initialFeatures);
+      } else {
+        // unexpected shape but 2xx status
+        openModal({ type: "success", title: "Company Created", body: data || "Company created." });
+        setFormData(initialFormData);
+        setFeatures(initialFeatures);
+      }
     } catch (err) {
-      // Build helpful error body for modal
+      // handle errors carefully
+      const status = err?.response?.status;
+      if (status === 401) {
+        // unauthorized: redirect to login
+        openModal({ type: "error", title: "Unauthorized", body: "You must be logged in to create a company." });
+        navigate("/login");
+        return;
+      }
+      if (status === 409 && err.response?.data) {
+        // duplicate key or conflict
+        const msg = err.response.data.message || "Duplicate value";
+        setServerErrors([msg]);
+        openModal({ type: "error", title: "Conflict", body: msg });
+        setLoading(false);
+        return;
+      }
+
+      // parse validation errors or arbitrary server shape
       let errorBody = "Unknown error occurred.";
       if (err.response && err.response.data) {
         const data = err.response.data;
+        // handle Joi-like details
         if (data.details && Array.isArray(data.details)) {
           errorBody = data.details.map((d) => d.message || JSON.stringify(d)).join("\n");
           setServerErrors(data.details.map((d) => d.message || JSON.stringify(d)));
@@ -759,10 +795,9 @@ const SystemAdminAddCompany = () => {
               </div>
 
               <div className="mt-4 flex justify-end gap-3">
-                {/* on success maybe navigate, but we leave navigation optional */}
+                {/* on success maybe navigate */}
                 <button
                   onClick={() => {
-                    // close modal
                     closeModal();
                   }}
                   className="px-4 py-2 rounded-md bg-gray-700 border border-gray-600 hover:bg-gray-600"
@@ -773,7 +808,6 @@ const SystemAdminAddCompany = () => {
                 {modalType === "success" && (
                   <button
                     onClick={() => {
-                      // example: navigate to companies list if you have one
                       closeModal();
                       navigate("/system/dashboard");
                     }}

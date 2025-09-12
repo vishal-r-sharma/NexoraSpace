@@ -5,17 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import SystemAdminNavbar from "./SystemAdminNavbar";
 import axios from "axios";
 
-/**
- * Company profile page:
- * - Loads company by id (GET /api/company/:id)
- * - Update (PUT /api/company/:id)
- * - Delete (DELETE /api/company/:id)
- * - All requests use withCredentials: true so cookie "token" is sent
- * - Shows modal for operation results
- *
- * NOTE: install axios and framer-motion if not installed
- */
-
+/** same emptyForm and allowedFeatures as before */
 const emptyForm = {
   companyName: "",
   companyType: "Private Limited",
@@ -26,7 +16,7 @@ const emptyForm = {
   dateOfIncorporation: "",
   authorisedCapital: "",
   paidUpCapital: "",
-  directors: "", // UI: comma separated
+  directors: "",
   mainBusinessActivity: "",
   numberOfEmployees: "",
   description: "",
@@ -58,7 +48,7 @@ const allowedFeatures = {
 };
 
 export default function SystemAdminCompanyProfile() {
-  const { id } = useParams(); // company id from route
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState(emptyForm);
@@ -69,19 +59,40 @@ export default function SystemAdminCompanyProfile() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState("info"); // success | error | info
+  const [modalType, setModalType] = useState("info");
   const [modalTitle, setModalTitle] = useState("");
   const [modalBody, setModalBody] = useState(null);
 
   useEffect(() => {
-    // fetch company by id
+    const controller = new AbortController();
+
     const fetchCompany = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`/api/company/${id}`, { withCredentials: true });
-        const company = res.data;
+        const res = await axios.get(`/api/company/${id}`, {
+          withCredentials: true,
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
 
-        // adapt returned model to form fields
+        // normalize server shapes:
+        // preferred: { success: true, company: {...} }
+        // fallback: res.data may directly be the company object
+        let company = null;
+        if (res?.data) {
+          if (res.data.success && res.data.company) company = res.data.company;
+          else if (res.data.company) company = res.data.company;
+          else company = res.data; // fallback
+        }
+
+        if (!company) {
+          throw new Error("Unexpected response shape from server while loading company.");
+        }
+
+        // defensive: remove sensitive fields if present
+        if (company.loginPassword) delete company.loginPassword;
+
+        // populate form state
         setFormData({
           companyName: company.companyName || "",
           companyType: company.companyType || "Private Limited",
@@ -114,7 +125,7 @@ export default function SystemAdminCompanyProfile() {
           logoUrl: company.logoUrl || "",
           status: company.status || "Active",
           loginEmail: company.loginEmail || "",
-          loginPassword: "", // keep empty for safety; set new password if user changes it
+          loginPassword: "", // keep blank for safety
           createdAt: company.createdAt ? new Date(company.createdAt).toLocaleString() : "",
           lastUpdated: company.updatedAt ? new Date(company.updatedAt).toLocaleString() : "",
         });
@@ -125,21 +136,26 @@ export default function SystemAdminCompanyProfile() {
           billingSystem: !!company.features?.billingSystem,
         });
       } catch (err) {
-        console.error("Error loading company:", err.response?.data || err.message);
-        const status = err.response?.status;
+        // ignore abort errors
+        if (axios.isCancel?.(err) || err?.name === "CanceledError") return;
+
+        console.error("Error loading company:", err?.response?.data || err?.message || err);
+        const status = err?.response?.status;
         if (status === 401) {
-          // not authenticated
           openModal({ type: "error", title: "Unauthorized", body: "Please login to access this page." });
           navigate("/login");
           return;
         }
-        openModal({ type: "error", title: "Error loading company", body: err.response?.data?.message || err.message });
+        // preferentially show server message
+        const body = err?.response?.data?.message || err?.response?.data || err.message || "Failed to load company";
+        openModal({ type: "error", title: "Error loading company", body });
       } finally {
         setLoading(false);
       }
     };
 
     fetchCompany();
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -163,7 +179,7 @@ export default function SystemAdminCompanyProfile() {
   };
 
   const validateBeforeSave = () => {
-    // basic required checks (same as add)
+    // required checks
     const required = [
       "companyName", "companyType", "registrationNumber", "panNumber", "gstNumber", "cinNumber",
       "dateOfIncorporation", "authorisedCapital", "paidUpCapital", "directors",
@@ -177,12 +193,10 @@ export default function SystemAdminCompanyProfile() {
         return `Please provide ${key}`;
       }
     }
-    // email checks
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email) || !emailRegex.test(formData.loginEmail)) {
       return "Please provide valid email addresses.";
     }
-    // numeric checks
     if (isNaN(Number(formData.authorisedCapital)) || Number(formData.authorisedCapital) < 0) {
       return "Authorised capital must be a non-negative number.";
     }
@@ -192,7 +206,6 @@ export default function SystemAdminCompanyProfile() {
     if (!Number.isInteger(Number(formData.numberOfEmployees)) || Number(formData.numberOfEmployees) < 0) {
       return "Number of employees must be a non-negative integer.";
     }
-    // directors
     const directorsArray = formData.directors
       .split(",")
       .map((d) => d.trim())
@@ -237,7 +250,6 @@ export default function SystemAdminCompanyProfile() {
       logoUrl: String(formData.logoUrl).trim(),
       status: String(formData.status).trim(),
       loginEmail: String(formData.loginEmail).trim(),
-      // Only include loginPassword if user entered a new one
       ...(formData.loginPassword ? { loginPassword: formData.loginPassword } : {}),
       features: {
         employeeManagement: !!features.employeeManagement,
@@ -261,14 +273,42 @@ export default function SystemAdminCompanyProfile() {
     setSaving(true);
     try {
       const res = await axios.put(`/api/company/${id}`, payload, { withCredentials: true });
-      openModal({ type: "success", title: "Saved", body: "Company updated successfully." });
-      // update timestamp and lastUpdated shown
-      setFormData((p) => ({ ...p, lastUpdated: new Date().toLocaleString() }));
-      // optionally update features again from server response
-      // if res.data.features then setFeatures...
+      // normalize response: prefer res.data.company, else res.data
+      const data = res?.data;
+      if (data?.success && data.company) {
+        // update UI from returned company if present
+        const updated = data.company;
+        if (updated.loginPassword) delete updated.loginPassword;
+        setFormData((p) => ({
+          ...p,
+          ...{
+            companyName: updated.companyName ?? p.companyName,
+            logoUrl: updated.logoUrl ?? p.logoUrl,
+            lastUpdated: updated.updatedAt ? new Date(updated.updatedAt).toLocaleString() : new Date().toLocaleString(),
+          },
+        }));
+        if (updated.features) {
+          setFeatures({
+            employeeManagement: !!updated.features.employeeManagement,
+            projectManagement: !!updated.features.projectManagement,
+            billingSystem: !!updated.features.billingSystem,
+          });
+        }
+      } else {
+        // fallback: just update timestamps
+        setFormData((p) => ({ ...p, lastUpdated: new Date().toLocaleString() }));
+      }
+
+      openModal({ type: "success", title: "Saved", body: data?.message || "Company updated successfully." });
     } catch (err) {
-      console.error("Update error:", err.response?.data || err.message);
-      const body = err.response?.data?.message || err.response?.data || err.message;
+      console.error("Update error:", err?.response?.data || err?.message || err);
+      const status = err?.response?.status;
+      if (status === 401) {
+        openModal({ type: "error", title: "Unauthorized", body: "Please login to perform this action." });
+        navigate("/login");
+        return;
+      }
+      const body = err?.response?.data?.message || err?.response?.data || err.message || "Update failed";
       openModal({ type: "error", title: "Update failed", body });
     } finally {
       setSaving(false);
@@ -282,21 +322,25 @@ export default function SystemAdminCompanyProfile() {
     setDeleting(true);
     try {
       const res = await axios.delete(`/api/company/${id}`, { withCredentials: true });
-      openModal({ type: "success", title: "Deleted", body: res.data?.message || "Company deleted." });
-      // redirect to dashboard after short delay to allow user to read modal
-      setTimeout(() => {
-        navigate("/system/dashboard");
-      }, 900);
+      const data = res?.data;
+      openModal({ type: "success", title: "Deleted", body: data?.message || "Company deleted." });
+      // redirect to dashboard after brief delay
+      setTimeout(() => navigate("/system/dashboard"), 900);
     } catch (err) {
-      console.error("Delete error:", err.response?.data || err.message);
-      const body = err.response?.data?.message || err.message;
+      console.error("Delete error:", err?.response?.data || err?.message || err);
+      const status = err?.response?.status;
+      if (status === 401) {
+        openModal({ type: "error", title: "Unauthorized", body: "Please login to perform this action." });
+        navigate("/login");
+        return;
+      }
+      const body = err?.response?.data?.message || err?.response?.data || err.message || "Delete failed";
       openModal({ type: "error", title: "Delete failed", body });
     } finally {
       setDeleting(false);
     }
   };
 
-  // Loading state render
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
@@ -313,7 +357,6 @@ export default function SystemAdminCompanyProfile() {
       <SystemAdminNavbar />
 
       <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-12 text-gray-100">
-        {/* Logo */}
         <div className="flex justify-center mb-6 sm:mb-8">
           <motion.img
             src={formData.logoUrl || "/logo-white.svg"}
@@ -430,7 +473,6 @@ export default function SystemAdminCompanyProfile() {
             <Select name="status" value={formData.status} onChange={handleChange} options={["Active", "Inactive"]} />
           </Section>
 
-          {/* Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-end">
             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} type="button" onClick={handleDelete} className="px-4 sm:px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-500">
               {deleting ? "Deleting..." : "Delete Company"}
