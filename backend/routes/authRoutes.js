@@ -9,7 +9,7 @@ router.post("/login", login)
 router.post("/logout", logout)
 router.get("/check", authMiddleware, (req, res) => {
   // middleware has attached req.user
-  res.status(200).json({ authenticated: true, user: req.user });
+//   res.status(200).json({ authenticated: true, user: req.user });
 });
 
 module.exports = router;

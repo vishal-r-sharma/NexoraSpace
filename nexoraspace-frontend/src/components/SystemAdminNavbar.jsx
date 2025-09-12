@@ -1,31 +1,29 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { PlusCircle, LogOut } from "lucide-react"; // ✅ icons
+import api from "../api/axios"
 
 const SystemAdminNavbar = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      const res = await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include", // 👈 send cookies so backend can clear token
-      });
+      // This will call /api/auth/logout in dev (proxied to localhost:5000)
+      // and https://api.nexoraspace.vishalsharmadev.in/api/auth/logout in production
+      const res = await api.post("/auth/logout")
 
-      if (res.ok) {
+      if (res.status === 200 || res.status === 204) {
         // ✅ Cookie cleared successfully on backend
-        navigate("/");
+        navigate("/")
       } else {
-        // ❌ Fallback: still navigate, but log error
-        const data = await res.json().catch(() => ({}));
-        console.error("Logout failed:", data.error || res.statusText);
-        navigate("/");
+        console.error("Logout failed:", res.data?.error || res.statusText)
+        navigate("/")
       }
     } catch (err) {
-      console.error("Logout error:", err);
-      navigate("/");
+      console.error("Logout error:", err.response?.data || err.message)
+      navigate("/")
     }
-  };
+  }
 
   return (
     <header className="sticky top-0 z-50 flex flex-wrap items-center justify-between bg-gray-800 px-4 sm:px-6 py-3 shadow-md">

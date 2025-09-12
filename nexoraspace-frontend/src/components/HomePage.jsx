@@ -17,30 +17,32 @@ import {
     X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import api from "../api/axios"
 
 export default function HomePage() {
     const navigate = useNavigate();
     const [showContact, setShowContact] = useState(false);
 
     const handleLoginClick = async () => {
-    try {
-      const res = await fetch("/api/auth/check", {
-        method: "GET",
-        credentials: "include", // send cookies
-      });
-      if (res.ok) {
-        // token valid -> go to dashboard
-        navigate("/system/dashboard");
-      } else {
-        // not authenticated -> go to login page
-        navigate("/system/login");
-      }
-    } catch (err) {
-      console.error("Auth check failed", err);
-      navigate("/system/login");
+        try {
+            // In dev: /api/auth/check → proxied to localhost:5000
+            // In prod: https://api.nexoraspace.vishalsharmadev.in/api/auth/check
+            const res = await api.get("/auth/check")
+
+            if (res.status === 200) {
+                // ✅ token valid
+                navigate("/system/dashboard")
+            } else {
+                // ❌ not authenticated (should normally throw instead)
+                navigate("/system/login")
+            }
+        } catch (err) {
+            // axios throws on 401/403
+            console.error("Auth check failed:", err.response?.status, err.message)
+            navigate("/system/login")
+        }
     }
-  };
-    
+
 
     return (
         <div className="relative min-h-screen bg-gray-950 text-gray-100 overflow-hidden font-sans">
