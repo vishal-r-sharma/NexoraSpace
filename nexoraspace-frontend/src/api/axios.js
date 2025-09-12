@@ -7,12 +7,12 @@ const isDev = import.meta.env.MODE === 'development'
 const prodApi = import.meta.env.VITE_API_URL || 'https://api.nexoraspace.vishalsharmadev.in'
 
 // In dev use relative '/api' so Vite proxy handles forwarding to localhost:5000
-const baseURL = isDev ? '/api' : prodApi
+const baseURL = isDev ? '' : prodApi
 
 const api = axios.create({
-  baseURL,
-  timeout: 10000,
-  withCredentials: true, // include cookies for every request
+    baseURL,
+    timeout: 10000,
+    withCredentials: true, // include cookies for every request
 })
 
 export default api

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import api from "../api/axios"; // adjust path if your instance is elsewhere
 
 export default function SystemAdminLogin() {
   const navigate = useNavigate();
@@ -17,19 +18,17 @@ export default function SystemAdminLogin() {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch("/api/auth/check", {
-          method: "GET",
-          credentials: "include", // important — send cookies
-        });
+        const res = await api.get("/api/auth/check"); // uses baseURL from your axios instance
         if (!mounted) return;
-        if (res.ok) {
+        if (res.status === 200) {
           // already authenticated -> go to dashboard
           navigate("/system/dashboard");
         } else {
-          setChecking(false); // show login form
+          setChecking(false); // show login form (unlikely for axios but kept for parity)
         }
       } catch (err) {
-        // network or other error -> show login form
+        // network or 401/403 -> show login form
+        if (!mounted) return;
         setChecking(false);
       }
     })();
@@ -44,23 +43,23 @@ export default function SystemAdminLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        credentials: "include", // crucial to allow server to set HttpOnly cookie
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
+      const res = await api.post("/api/auth/login", { email, password });
+      // axios will treat 2xx as success
+      if (res.status === 200) {
         // login successful — cookie already set by server
         navigate("/system/dashboard");
       } else {
-        setError(data.error || "Invalid credentials");
+        // unlikely, but handle
+        setError(res.data?.error || "Invalid credentials");
       }
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Network error — please try again");
+      // extract server error message if any
+      const serverMsg = err?.response?.data?.error;
+      if (serverMsg) setError(serverMsg);
+      else {
+        console.error("Login error:", err);
+        setError("Network error — please try again");
+      }
     } finally {
       setLoading(false);
     }

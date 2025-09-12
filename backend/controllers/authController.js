@@ -1,11 +1,9 @@
 // controllers/authController.js
 const SystemUserModule = require("../models/SystemUser");
-const SystemUser = SystemUserModule.SystemUser || SystemUserModule; // support both exports
+const SystemUser = SystemUserModule.SystemUser || SystemUserModule;
 const bcrypt = require("bcrypt");
 const generateToken = require("../utils/generateToken");
 const Joi = require("joi");
-
-
 
 // --- Joi Schemas ---
 const registerSchema = Joi.object({
@@ -19,51 +17,57 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
-
-
 // --- helpers ---
-const cookieOptions = (req) => ({
-  httpOnly: true,
-  secure: req.secure || req.headers["x-forwarded-proto"] === "https" || process.env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-});
+// Build cookie options depending on environment and request
+const cookieOptions = (req) => {
+  const isProd = process.env.NODE_ENV === "production";
 
+  // If you want the cookie to be accessible across subdomains (api. and root),
+  // set domain to ".nexoraspace.vishalsharmadev.in". If you don't need that,
+  // omit domain so cookie is scoped to the API host.
+  const domain = isProd ? ".nexoraspace.vishalsharmadev.in" : undefined;
 
+  return {
+    httpOnly: true,
+    secure:
+      // if request is over HTTPS (proxy may set x-forwarded-proto) OR running in prod
+      (req && (req.secure || req.headers["x-forwarded-proto"] === "https")) ||
+      isProd,
+    // IMPORTANT: for cross-site cookies (frontend origin != api origin) we need 'none'
+    // In dev keep 'lax' to avoid issues on localhost without https
+    sameSite: isProd ? "none" : "lax",
+    domain,
+    path: "/", // ensure cookie is sent on all paths
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  };
+};
 
 // --- controller methods ---
 module.exports.registerSystem = async function (req, res) {
   try {
-    // validate input
     const { error, value } = registerSchema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { name, email, password } = value;
 
-    // check existing user
     const existing = await SystemUser.findOne({ email });
     if (existing) {
       return res.status(400).json({ error: "Account already exists. Please login." });
     }
 
-    // hash password
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
 
-    // create user
     const user = await SystemUser.create({
       name,
       email,
       password: hash,
     });
 
-    // create token (store relevant payload)
     const token = generateToken({ id: user._id, email: user.email });
 
-    // set cookie
     res.cookie("token", token, cookieOptions(req));
 
-    // send minimal user info (never send password)
     res.status(201).json({
       message: "System User created",
       user: { id: user._id, name: user.name, email: user.email },
@@ -103,11 +107,14 @@ module.exports.login = async function (req, res) {
 
 module.exports.logout = function (req, res) {
   try {
-    // Clear cookie. Use same options so cookie is actually removed in some browsers
+    const isProd = process.env.NODE_ENV === "production";
+    // Clear cookie using the same attributes (domain/path/sameSite/secure)
     res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      domain: isProd ? ".nexoraspace.vishalsharmadev.in" : undefined,
+      path: "/",
     });
     res.status(200).json({ message: "Logged out successfully" });
   } catch (err) {

@@ -19,9 +19,11 @@ app.use(cookieParser())
 app.use(express.urlencoded({extended: true}));
 
 // Allow the frontend origin and credentials
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 app.use(cors({
-  origin: CLIENT_ORIGIN,
+  origin: [
+    'http://localhost:5173',                 // dev frontend
+    'https://nexoraspace.vishalsharmadev.in' // prod frontend
+  ],
   credentials: true,
 }));
 

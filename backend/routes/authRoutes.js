@@ -7,9 +7,10 @@ const authMiddleware = require("../middleware/authMiddleware")
 router.post("/register", registerSystem)
 router.post("/login", login)
 router.post("/logout", logout)
+
+// protected check route — middleware attaches req.user
 router.get("/check", authMiddleware, (req, res) => {
-  // middleware has attached req.user
-//   res.status(200).json({ authenticated: true, user: req.user });
+  return res.status(200).json({ authenticated: true, user: req.user });
 });
 
 module.exports = router;
