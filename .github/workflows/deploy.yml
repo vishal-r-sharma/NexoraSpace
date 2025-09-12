@@ -1,89 +1,51 @@
-name: Deploy Frontend & Backend to cPanel Domain
+name: Deploy React (Vite) to cPanel Domain
 
 on:
   push:
     branches:
-      - main
+      - main  # Runs on every push to the main branch.
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    # Step 1: Checkout Repository
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      # ---------- FRONTEND ----------
-      - name: Setup Node.js for Frontend
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.18.0
-          cache: 'npm'
-          cache-dependency-path: nexoraspace-frontend/package-lock.json
+    # Step 2: Setup Node.js
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
 
-      - name: Install Frontend Dependencies
-        working-directory: nexoraspace-frontend
-        run: npm ci
+    # Step 3: Install Dependencies
+    - name: Install Dependencies
+      working-directory: nexoraspace-frontend
+      run: npm install
 
-      - name: Build Vite App (Frontend)
-        working-directory: nexoraspace-frontend
-        run: npm run build
+    # Step 4: Build Vite App (dist folder)
+    - name: Build Vite App
+      working-directory: nexoraspace-frontend
+      run: npm run build
 
-      - name: Install Rsync & SSH Tools
-        run: |
-          echo "Installing rsync & sshpass..."
-          sudo apt-get update -y
-          sudo apt-get install -y rsync sshpass
+    # Step 5: Install Rsync & SSH Tools
+    - name: Install Rsync & SSH Tools
+      run: |
+        echo "Installing rsync & sshpass..."
+        sudo apt-get install -y rsync sshpass
 
-      - name: Deploy Frontend to cPanel Server
-        run: |
-          echo "🚀 Deploying frontend to cPanel..."
-          rsync -avz --delete \
-            --exclude='.git/' \
-            --exclude='.htaccess' \
-            --exclude='.env' \
-            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
-            ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
+    # Step 6: Deploy via Rsync (Only Changed Files)
+    - name: Deploy to cPanel Server
+      run: |
+        echo "Deploying files to cPanel..."
+        rsync -avz --delete --exclude='.git/' --exclude='.htaccess' --exclude='.env' \
+        -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
+        ./nexoraspace-frontend/dist/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/nexoraspace.vishalsharmadev.in/
 
-      # ---------- BACKEND ----------
-      - name: Setup Node.js for Backend
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.18.0
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install Backend Dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Build Backend (if you have a build script)
-        working-directory: backend
-        # if you don't have a build script, this step will succeed but do nothing.
-        run: |
-          if npm run | grep -q " build"; then
-            npm run build
-          else
-            echo "No backend build script; skipping build."
-          fi
-
-      - name: Deploy Backend to cPanel Server
-        run: |
-          echo "🚀 Deploying backend to cPanel..."
-          rsync -avz --delete \
-            --exclude='.git/' \
-            --exclude='.env' \
-            --exclude='node_modules/' \
-            -e "sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
-            ./backend/ ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }}:/home/sewturbhe/api.nexoraspace.vishalsharmadev.in/
-
-      - name: Trigger app restart on server (Passenger / cPanel)
-        run: |
-          echo "Attempting to trigger app restart on server..."
-          sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.CPANEL_USERNAME }}@${{ secrets.CPANEL_HOST }} \
-            'cd /home/sewturbhe/api.nexoraspace.vishalsharmadev.in 2>/dev/null && mkdir -p tmp && touch tmp/restart.txt || echo "Passenger restart file not created (maybe not using Passenger)."'
-
-      - name: Confirm Deployment
-        run: echo "✅ Deployment completed successfully!"
+    # Step 7: Confirm Deployment
+    - name: Confirm Deployment
+      run: echo "✅ Deployment completed successfully!"
