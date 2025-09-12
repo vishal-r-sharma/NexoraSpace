@@ -27,7 +27,7 @@ export default function HomePage() {
         try {
             // In dev: /api/auth/check → proxied to localhost:5000
             // In prod: https://api.nexoraspace.vishalsharmadev.in/api/auth/check
-            const res = await api.get("/auth/check")
+            const res = await api.get("/api/auth/check")
 
             if (res.status === 200) {
                 // ✅ token valid
