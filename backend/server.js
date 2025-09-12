@@ -1,19 +1,38 @@
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
+const dotenv = require("dotenv").config();
+const cookieParser = require('cookie-parser');
 const connectDB = require("./config/mongoose_connection");
 const Company = require("./models/Company"); // import model
-
-dotenv.config();
+const authRoutes = require("./routes/authRoutes");
+const authMiddleware = require("./middleware/authMiddleware");
 
 const app = express();
 
+
+// If behind proxy (Heroku / nginx), enable this so req.secure works
+app.set("trust proxy", 1);
+
 // Middleware
-app.use(cors());
 app.use(express.json());
+app.use(cookieParser())
+app.use(express.urlencoded({extended: true}));
+
+// Allow the frontend origin and credentials
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+app.use(cors({
+  origin: CLIENT_ORIGIN,
+  credentials: true,
+}));
 
 // Connect to MongoDB
 connectDB();
+
+
+app.use("/api/auth", authRoutes);
+
+
+app.get("/system/dashboard", authMiddleware)
 
 // Test route
 app.get("/", (req, res) => {

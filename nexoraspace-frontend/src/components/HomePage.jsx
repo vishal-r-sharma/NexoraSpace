@@ -22,6 +22,26 @@ export default function HomePage() {
     const navigate = useNavigate();
     const [showContact, setShowContact] = useState(false);
 
+    const handleLoginClick = async () => {
+    try {
+      const res = await fetch("/api/auth/check", {
+        method: "GET",
+        credentials: "include", // send cookies
+      });
+      if (res.ok) {
+        // token valid -> go to dashboard
+        navigate("/system/dashboard");
+      } else {
+        // not authenticated -> go to login page
+        navigate("/system/login");
+      }
+    } catch (err) {
+      console.error("Auth check failed", err);
+      navigate("/system/login");
+    }
+  };
+    
+
     return (
         <div className="relative min-h-screen bg-gray-950 text-gray-100 overflow-hidden font-sans">
             {/* Background */}
@@ -59,7 +79,7 @@ export default function HomePage() {
                             Contact
                         </button>
                         <button
-                            onClick={() => navigate("/system/login")}
+                            onClick={handleLoginClick}
                             className="px-6 py-2 rounded-full bg-yellow-500 text-black font-semibold hover:shadow-lg hover:shadow-yellow-400/40 transition"
                         >
                             Login

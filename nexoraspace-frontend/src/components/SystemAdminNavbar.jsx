@@ -5,6 +5,28 @@ import { PlusCircle, LogOut } from "lucide-react"; // ✅ icons
 const SystemAdminNavbar = () => {
   const navigate = useNavigate();
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include", // 👈 send cookies so backend can clear token
+      });
+
+      if (res.ok) {
+        // ✅ Cookie cleared successfully on backend
+        navigate("/");
+      } else {
+        // ❌ Fallback: still navigate, but log error
+        const data = await res.json().catch(() => ({}));
+        console.error("Logout failed:", data.error || res.statusText);
+        navigate("/");
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+      navigate("/");
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 flex flex-wrap items-center justify-between bg-gray-800 px-4 sm:px-6 py-3 shadow-md">
       {/* Logo */}
@@ -30,7 +52,7 @@ const SystemAdminNavbar = () => {
         </button>
 
         <button
-          onClick={() => navigate("/")}
+          onClick={handleLogout} // 👈 call logout handler
           className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-md bg-red-400 text-black text-sm font-semibold hover:scale-105 transition"
         >
           <LogOut size={18} /> {/* ✅ Logout icon */}
