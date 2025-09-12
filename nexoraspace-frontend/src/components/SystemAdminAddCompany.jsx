@@ -1,123 +1,312 @@
-import React, { useState } from "react";
+// SystemAdminAddCompany.jsx
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import SystemAdminNavbar from "./SystemAdminNavbar";
+
+/**
+ * SystemAdminAddCompany
+ * - Converts directors (comma-separated) -> array
+ * - Converts numeric fields to numbers
+ * - Limits features to only: employeeManagement, projectManagement, billingSystem
+ * - Sends POST to /api/company/add (adjust endpoint as needed)
+ * - Displays basic client-side validation + server errors
+ * - Shows a popup modal (success or error) after submit
+ *
+ * NOTE: install axios: npm install axios
+ */
+
+const initialFormData = {
+  companyName: "",
+  companyType: "Private Limited",
+  registrationNumber: "",
+  panNumber: "",
+  gstNumber: "",
+  cinNumber: "",
+  dateOfIncorporation: "",
+  authorisedCapital: "",
+  paidUpCapital: "",
+  directors: "",
+  mainBusinessActivity: "",
+  numberOfEmployees: "",
+  description: "",
+  registeredAddress: "",
+  city: "",
+  state: "",
+  pincode: "",
+  country: "India",
+  email: "",
+  phone: "",
+  website: "",
+  socialMedia: "",
+  bankName: "",
+  accountNumber: "",
+  ifscCode: "",
+  branch: "",
+  logoUrl: "",
+  status: "Active",
+  loginEmail: "",
+  loginPassword: "",
+};
+
+const initialFeatures = {
+  employeeManagement: false,
+  projectManagement: false,
+  billingSystem: false,
+};
 
 const SystemAdminAddCompany = () => {
   const navigate = useNavigate();
+  const [formData, setFormData] = useState(initialFormData);
+  const [features, setFeatures] = useState(initialFeatures);
+  const [loading, setLoading] = useState(false);
+  const [serverErrors, setServerErrors] = useState(null);
+  const [clientError, setClientError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
 
-  const [formData, setFormData] = useState({
-    companyName: "",
-    companyType: "Private Limited",
-    registrationNumber: "",
-    panNumber: "",
-    gstNumber: "",
-    cinNumber: "",
-    dateOfIncorporation: "",
-    authorisedCapital: "",
-    paidUpCapital: "",
-    directors: "",
-    mainBusinessActivity: "",
-    numberOfEmployees: "",
-    description: "",
-    registeredAddress: "",
-    city: "",
-    state: "",
-    pincode: "",
-    country: "India",
-    email: "",
-    phone: "",
-    website: "",
-    socialMedia: "",
-    bankName: "",
-    accountNumber: "",
-    ifscCode: "",
-    branch: "",
-    logoUrl: "",
-    status: "Active",
-    loginEmail: "",
-    loginPassword: "",
-  });
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState("info"); // 'success' | 'error' | 'info'
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalBody, setModalBody] = useState(null);
 
-  const [features, setFeatures] = useState({
-    employeeManagement: false,
-    projectManagement: false,
-    billingSystem: false,
-    inventoryManagement: false,
-    crm: false,
-    analytics: false,
-    hrManagement: false,
-    payrollSystem: false,
-  });
+  // lock body scroll when modal open
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showModal]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setClientError(null);
+    setServerErrors(null);
+    setSuccessMsg(null);
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFeatureChange = (e) => {
     const { name, checked } = e.target;
-    setFeatures({ ...features, [name]: checked });
+    if (!Object.prototype.hasOwnProperty.call(initialFeatures, name)) return;
+    setFeatures((prev) => ({ ...prev, [name]: checked }));
+    setClientError(null);
+    setServerErrors(null);
+    setSuccessMsg(null);
   };
 
-  const handleSubmit = (e) => {
+  const validateClientSide = () => {
+    const requiredKeys = [
+      "companyName",
+      "companyType",
+      "registrationNumber",
+      "panNumber",
+      "gstNumber",
+      "cinNumber",
+      "dateOfIncorporation",
+      "authorisedCapital",
+      "paidUpCapital",
+      "directors",
+      "mainBusinessActivity",
+      "numberOfEmployees",
+      "description",
+      "registeredAddress",
+      "city",
+      "state",
+      "pincode",
+      "country",
+      "email",
+      "phone",
+      "website",
+      "socialMedia",
+      "bankName",
+      "accountNumber",
+      "ifscCode",
+      "branch",
+      "logoUrl",
+      "status",
+      "loginEmail",
+      "loginPassword",
+    ];
+
+    for (const key of requiredKeys) {
+      const val = formData[key];
+      if (val === null || val === undefined || String(val).trim() === "") {
+        return `Please fill '${key}'`;
+      }
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email) || !emailRegex.test(formData.loginEmail)) {
+      return "Please enter valid email(s).";
+    }
+
+    if (String(formData.loginPassword).length < 8) {
+      return "Admin password must be at least 8 characters.";
+    }
+
+    if (isNaN(Number(formData.authorisedCapital)) || Number(formData.authorisedCapital) < 0) {
+      return "Authorised capital must be a non-negative number.";
+    }
+    if (isNaN(Number(formData.paidUpCapital)) || Number(formData.paidUpCapital) < 0) {
+      return "Paid-up capital must be a non-negative number.";
+    }
+    if (!Number.isInteger(Number(formData.numberOfEmployees)) || Number(formData.numberOfEmployees) < 0) {
+      return "Number of employees must be a non-negative integer.";
+    }
+
+    const directorsArray = formData.directors
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean);
+    if (directorsArray.length < 1) {
+      return "Please provide at least one director.";
+    }
+
+    if (
+      typeof features.employeeManagement !== "boolean" ||
+      typeof features.projectManagement !== "boolean" ||
+      typeof features.billingSystem !== "boolean"
+    ) {
+      return "Invalid features selection.";
+    }
+
+    return null;
+  };
+
+  const preparePayload = () => {
+    const directorsArray = formData.directors
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean);
+
+    const payload = {
+      companyName: String(formData.companyName).trim(),
+      companyType: String(formData.companyType).trim(),
+      registrationNumber: String(formData.registrationNumber).trim(),
+      panNumber: String(formData.panNumber).trim(),
+      gstNumber: String(formData.gstNumber).trim(),
+      cinNumber: String(formData.cinNumber).trim(),
+      dateOfIncorporation: formData.dateOfIncorporation,
+      authorisedCapital: Number(formData.authorisedCapital),
+      paidUpCapital: Number(formData.paidUpCapital),
+      directors: directorsArray,
+      mainBusinessActivity: String(formData.mainBusinessActivity).trim(),
+      numberOfEmployees: Number(formData.numberOfEmployees),
+      description: String(formData.description).trim(),
+      registeredAddress: String(formData.registeredAddress).trim(),
+      city: String(formData.city).trim(),
+      state: String(formData.state).trim(),
+      pincode: String(formData.pincode).trim(),
+      country: String(formData.country).trim(),
+      email: String(formData.email).trim(),
+      phone: String(formData.phone).trim(),
+      website: String(formData.website).trim(),
+      socialMedia: String(formData.socialMedia).trim(),
+      bankName: String(formData.bankName).trim(),
+      accountNumber: String(formData.accountNumber).trim(),
+      ifscCode: String(formData.ifscCode).trim(),
+      branch: String(formData.branch).trim(),
+      logoUrl: String(formData.logoUrl).trim(),
+      status: String(formData.status).trim(),
+      loginEmail: String(formData.loginEmail).trim(),
+      loginPassword: String(formData.loginPassword),
+      features: {
+        employeeManagement: !!features.employeeManagement,
+        projectManagement: !!features.projectManagement,
+        billingSystem: !!features.billingSystem,
+      },
+    };
+
+    return payload;
+  };
+
+  const openModal = ({ type = "info", title = "", body = null }) => {
+    setModalType(type);
+    setModalTitle(title);
+    setModalBody(body);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Company Data:", formData);
-    console.log("Features:", features);
+    setClientError(null);
+    setServerErrors(null);
+    setSuccessMsg(null);
+
+    const clientValidationMsg = validateClientSide();
+    if (clientValidationMsg) {
+      setClientError(clientValidationMsg);
+      // also show modal for client-side validation if you want
+      openModal({ type: "error", title: "Validation error", body: clientValidationMsg });
+      return;
+    }
+
+    const payload = preparePayload();
+
+    setLoading(true);
+    try {
+      // Adjust endpoint as necessary
+      const resp = await axios.post("/api/company/add", payload, {
+        headers: { "Content-Type": "application/json" },
+      });
+
+      // Successful creation
+      setSuccessMsg("Company created successfully.");
+      // optionally clear form
+      setFormData(initialFormData);
+      setFeatures(initialFeatures);
+
+      // show modal with server response (resp.data)
+      const body = resp.data ? resp.data : "Company created successfully.";
+      openModal({ type: "success", title: "Company Created", body });
+    } catch (err) {
+      // Build helpful error body for modal
+      let errorBody = "Unknown error occurred.";
+      if (err.response && err.response.data) {
+        const data = err.response.data;
+        if (data.details && Array.isArray(data.details)) {
+          errorBody = data.details.map((d) => d.message || JSON.stringify(d)).join("\n");
+          setServerErrors(data.details.map((d) => d.message || JSON.stringify(d)));
+        } else if (data.message) {
+          errorBody = data.message;
+          setServerErrors([data.message]);
+        } else {
+          errorBody = JSON.stringify(data);
+          setServerErrors([JSON.stringify(data)]);
+        }
+      } else {
+        errorBody = err.message || errorBody;
+        setServerErrors([errorBody]);
+      }
+
+      openModal({ type: "error", title: "Failed to create company", body: errorBody });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClear = () => {
-    setFormData({
-      companyName: "",
-      companyType: "Private Limited",
-      registrationNumber: "",
-      panNumber: "",
-      gstNumber: "",
-      cinNumber: "",
-      dateOfIncorporation: "",
-      authorisedCapital: "",
-      paidUpCapital: "",
-      directors: "",
-      mainBusinessActivity: "",
-      numberOfEmployees: "",
-      description: "",
-      registeredAddress: "",
-      city: "",
-      state: "",
-      pincode: "",
-      country: "India",
-      email: "",
-      phone: "",
-      website: "",
-      socialMedia: "",
-      bankName: "",
-      accountNumber: "",
-      ifscCode: "",
-      branch: "",
-      logoUrl: "",
-      status: "Active",
-      loginEmail: "",
-      loginPassword: "",
-    });
-    setFeatures({
-      employeeManagement: false,
-      projectManagement: false,
-      billingSystem: false,
-      inventoryManagement: false,
-      crm: false,
-      analytics: false,
-      hrManagement: false,
-      payrollSystem: false,
-    });
+    setFormData(initialFormData);
+    setFeatures(initialFeatures);
+    setClientError(null);
+    setServerErrors(null);
+    setSuccessMsg(null);
   };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Navbar */}
       <SystemAdminNavbar />
 
-      {/* Main Content */}
       <div className="p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="bg-gray-800 shadow-md rounded-xl p-6 md:p-8 col-span-1 lg:col-span-3 space-y-6"
@@ -125,6 +314,25 @@ const SystemAdminAddCompany = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-center mb-6">
             Add New Company
           </h1>
+
+          {/* show inline messages too (optional) */}
+          {clientError && (
+            <div className="bg-red-600/30 border border-red-500 text-red-100 p-3 rounded">
+              {clientError}
+            </div>
+          )}
+          {serverErrors && serverErrors.length > 0 && (
+            <div className="bg-red-600/20 border border-red-500 text-red-100 p-3 rounded space-y-1">
+              {serverErrors.map((err, idx) => (
+                <div key={idx}>{err}</div>
+              ))}
+            </div>
+          )}
+          {successMsg && (
+            <div className="bg-green-700/20 border border-green-500 text-green-100 p-3 rounded">
+              {successMsg}
+            </div>
+          )}
 
           {/* Basic Information */}
           <div className="space-y-3">
@@ -212,7 +420,8 @@ const SystemAdminAddCompany = () => {
             <h2 className="font-semibold text-lg">Financial & Management</h2>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
-                type="text"
+                type="number"
+                min="0"
                 name="authorisedCapital"
                 placeholder="Authorised Capital (INR)"
                 value={formData.authorisedCapital}
@@ -220,7 +429,8 @@ const SystemAdminAddCompany = () => {
                 className="flex-1 px-3 py-2 border border-gray-600 rounded-md focus:ring-2 focus:ring-yellow-400 outline-none bg-gray-700 text-white"
               />
               <input
-                type="text"
+                type="number"
+                min="0"
                 name="paidUpCapital"
                 placeholder="Paid-up Capital (INR)"
                 value={formData.paidUpCapital}
@@ -238,6 +448,7 @@ const SystemAdminAddCompany = () => {
             />
             <input
               type="number"
+              min="0"
               name="numberOfEmployees"
               placeholder="Number of Employees"
               value={formData.numberOfEmployees}
@@ -317,7 +528,7 @@ const SystemAdminAddCompany = () => {
               <input
                 type="password"
                 name="loginPassword"
-                placeholder="Admin Password"
+                placeholder="Admin Password (min 8 chars)"
                 value={formData.loginPassword}
                 onChange={handleChange}
                 className="flex-1 px-3 py-2 border border-gray-600 rounded-md focus:ring-2 focus:ring-yellow-400 outline-none bg-gray-700 text-white"
@@ -433,9 +644,10 @@ const SystemAdminAddCompany = () => {
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="submit"
-              className="flex-1 py-2 bg-yellow-400 text-black rounded-md font-medium hover:bg-yellow-500 transition"
+              disabled={loading}
+              className="flex-1 py-2 bg-yellow-400 text-black rounded-md font-medium hover:bg-yellow-500 transition disabled:opacity-60"
             >
-              Add Company
+              {loading ? "Adding..." : "Add Company"}
             </button>
             <button
               type="button"
@@ -454,7 +666,7 @@ const SystemAdminAddCompany = () => {
           </h2>
 
           <div className="space-y-3">
-            {Object.keys(features).map((featureKey) => (
+            {Object.keys(initialFeatures).map((featureKey) => (
               <label
                 key={featureKey}
                 htmlFor={featureKey}
@@ -475,8 +687,106 @@ const SystemAdminAddCompany = () => {
             ))}
           </div>
         </div>
-
       </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          {/* overlay */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={closeModal}
+            aria-hidden="true"
+          />
+          {/* modal panel */}
+          <div className="relative z-10 max-w-2xl w-full bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-md ${modalType === "success"
+                        ? "bg-green-600/20 text-green-300"
+                        : modalType === "error"
+                          ? "bg-red-600/20 text-red-300"
+                          : "bg-yellow-600/20 text-yellow-300"
+                      }`}
+                  >
+                    {/* icon */}
+                    {modalType === "success" ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : modalType === "error" ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">{modalTitle}</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {modalType === "success" ? "Operation completed." : "See details below."}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeModal}
+                  className="text-gray-300 hover:text-white rounded-md p-2"
+                  aria-label="Close"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mt-4 max-h-72 overflow-auto">
+                {/* render modal body differently depending on content type */}
+                {typeof modalBody === "string" || typeof modalBody === "number" ? (
+                  <pre className="whitespace-pre-wrap text-sm text-gray-100 bg-gray-900/30 p-3 rounded">{String(modalBody)}</pre>
+                ) : modalBody && typeof modalBody === "object" ? (
+                  <pre className="whitespace-pre-wrap text-sm text-gray-100 bg-gray-900/30 p-3 rounded">
+                    {JSON.stringify(modalBody, null, 2)}
+                  </pre>
+                ) : (
+                  <div className="text-sm text-gray-300">No additional details provided.</div>
+                )}
+              </div>
+
+              <div className="mt-4 flex justify-end gap-3">
+                {/* on success maybe navigate, but we leave navigation optional */}
+                <button
+                  onClick={() => {
+                    // close modal
+                    closeModal();
+                  }}
+                  className="px-4 py-2 rounded-md bg-gray-700 border border-gray-600 hover:bg-gray-600"
+                >
+                  Close
+                </button>
+
+                {modalType === "success" && (
+                  <button
+                    onClick={() => {
+                      // example: navigate to companies list if you have one
+                      closeModal();
+                      navigate("/system/dashboard");
+                    }}
+                    className="px-4 py-2 rounded-md bg-green-600 text-black font-medium hover:bg-green-700"
+                  >
+                    Go to Companies
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

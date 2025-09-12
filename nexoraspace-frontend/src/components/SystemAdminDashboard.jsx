@@ -1,37 +1,46 @@
+// SystemAdminDashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import SystemAdminNavbar from "./SystemAdminNavbar";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
-
-const companiesData = [
-  { id: 1, name: "NexoraSpace Pvt Ltd.", uid: "U47734TS2024PTC182276", nid: "NEX123456", status: "Active", logo: "/logo-white.svg" },
-  { id: 2, name: "InnoTech Solutions", uid: "U12345TS2024PTC182277", nid: "INO987654", status: "Active", logo: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" },
-  { id: 3, name: "FutureX Pvt Ltd.", uid: "U54321TS2024PTC182278", nid: "FUT654321", status: "Inactive", logo: "/logo-white.svg" },
-  { id: 4, name: "Global Ventures Ltd.", uid: "U67890TS2024PTC182279", nid: "GLO112233", status: "Active", logo: "/logo-white.svg" },
-  { id: 5, name: "NextGen Pvt Ltd.", uid: "U13579TS2024PTC182280", nid: "NEX998877", status: "Inactive", logo: "/logo-white.svg" },
-  { id: 6, name: "Alpha Technologies", uid: "U24680TS2024PTC182281", nid: "ALP445566", status: "Active", logo: "/logo-white.svg" },
-  { id: 7, name: "Visionary Labs", uid: "U11223TS2024PTC182282", nid: "VIS778899", status: "Active", logo: "/logo-white.svg" },
-  { id: 8, name: "BlueOcean Corp", uid: "U33445TS2024PTC182283", nid: "BLU223344", status: "Inactive", logo: "/logo-white.svg" },
-  { id: 9, name: "GreenEnergy Pvt Ltd.", uid: "U55667TS2024PTC182284", nid: "GRE667788", status: "Active", logo: "/logo-white.svg" },
-];
-
+// Dashboard Component
 export default function SystemAdminDashboard() {
-
   const navigate = useNavigate();
 
+  const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [visibleCount, setVisibleCount] = useState(6);
   const [loading, setLoading] = useState(false);
   const loaderRef = useRef(null);
 
+  // Fetch all companies from backend
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get("/api/company/all", {
+          withCredentials: true, // ✅ ensures cookies (token) are sent
+        });
+        setCompanies(res.data);
+      } catch (err) {
+        console.error("Error fetching companies:", err.response?.data || err.message);
+        if (err.response?.status === 401) {
+          // not authenticated -> redirect to login
+          navigate("/login");
+        }
+      }
+    };
+    fetchCompanies();
+  }, [navigate]);
+
   // Filtering logic
-  const filteredCompanies = companiesData.filter((company) => {
+  const filteredCompanies = companies.filter((company) => {
     const query = search.toLowerCase();
     const matchFields =
-      company.name.toLowerCase().includes(query) ||
-      company.uid.toLowerCase().includes(query) ||
-      company.nid.toLowerCase().includes(query);
+      company.companyName.toLowerCase().includes(query) ||
+      company.cinNumber.toLowerCase().includes(query) ||
+      company.registrationNumber.toLowerCase().includes(query);
 
     const matchStatus =
       filter === "All" ? true : company.status.toLowerCase() === filter.toLowerCase();
@@ -58,18 +67,8 @@ export default function SystemAdminDashboard() {
     return () => observer.disconnect();
   }, [visibleCount, filteredCompanies.length, loading]);
 
-  // Auto-fill for big screens
-  useEffect(() => {
-    if (
-      document.documentElement.scrollHeight <= window.innerHeight &&
-      visibleCount < filteredCompanies.length
-    ) {
-      setVisibleCount((prev) => prev + 4);
-    }
-  }, [visibleCount, filteredCompanies.length]);
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white transition-colors duration-300">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Navbar */}
       <SystemAdminNavbar />
 
@@ -87,8 +86,7 @@ export default function SystemAdminDashboard() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-3 py-2 rounded-md border border-gray-600 bg-gray-700 
-                       text-sm md:text-base w-full sm:w-auto"
+            className="px-3 py-2 rounded-md border border-gray-600 bg-gray-700 text-sm md:text-base w-full sm:w-auto"
           >
             <option value="All">All</option>
             <option value="Active">Active</option>
@@ -96,12 +94,10 @@ export default function SystemAdminDashboard() {
           </select>
           <input
             type="text"
-            placeholder="Search by Name, UID or NID"
+            placeholder="Search by Name, CIN, or Registration No."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-md border border-gray-600 
-                       text-sm md:text-base focus:ring-2 focus:ring-yellow-400 outline-none 
-                       bg-gray-700 w-full"
+            className="flex-1 px-3 py-2 rounded-md border border-gray-600 text-sm md:text-base focus:ring-2 focus:ring-yellow-400 outline-none bg-gray-700 w-full"
           />
         </div>
       </div>
@@ -111,16 +107,20 @@ export default function SystemAdminDashboard() {
         {filteredCompanies.length > 0 ? (
           filteredCompanies.slice(0, visibleCount).map((company) => (
             <div
-              key={company.id}
+              key={company._id}
               className="bg-gray-800 rounded-xl p-5 shadow-md flex flex-col justify-between 
                          transition duration-300 hover:scale-105 hover:shadow-xl hover:border-yellow-400 border border-transparent"
             >
               <div className="flex justify-between items-start">
-                <img src={company.logo} alt={company.name} className="h-10 w-auto object-contain" />
+                <img
+                  src={company.logoUrl || "/logo-white.svg"}
+                  alt={company.companyName}
+                  className="h-10 w-auto object-contain"
+                />
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-semibold ${company.status === "Active"
-                    ? "bg-green-600 text-white"
-                    : "bg-red-600 text-white"
+                      ? "bg-green-600 text-white"
+                      : "bg-red-600 text-white"
                     }`}
                 >
                   {company.status}
@@ -128,16 +128,16 @@ export default function SystemAdminDashboard() {
               </div>
 
               <div className="mt-4 text-sm space-y-1">
-                <p><span className="font-semibold">Name:</span> {company.name}</p>
-                <p><span className="font-semibold">UID:</span> {company.uid}</p>
-                <p><span className="font-semibold">NID:</span> {company.nid}</p>
+                <p><span className="font-semibold">Name:</span> {company.companyName}</p>
+                <p><span className="font-semibold">CIN:</span> {company.cinNumber}</p>
+                <p><span className="font-semibold">Reg No:</span> {company.registrationNumber}</p>
               </div>
 
               <div className="flex justify-end mt-5">
                 <button
-                  onClick={() => navigate("/system/company-profile")}
-
-                  className="border border-gray-600 px-4 py-2 rounded-md text-sm font-medium hover:bg-yellow-400 hover:text-black transition">
+                  onClick={() => navigate(`/system/company/${company._id}`)}
+                  className="border border-gray-600 px-4 py-2 rounded-md text-sm font-medium hover:bg-yellow-400 hover:text-black transition"
+                >
                   Manage
                 </button>
               </div>

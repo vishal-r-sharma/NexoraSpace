@@ -14,7 +14,7 @@ const AppRoutes = () => {
       <Route path="/system/login" element={<SystemAdminLogin />} />
       <Route path="/system/dashboard" element={<SystemAdminDashboard />} />
       <Route path="/system/add-company" element={<SystemAdminAddCompany />} />
-      <Route path="/system/company-profile" element={<SystemAdminCompanyProfile />} />
+      <Route path="/system/company/:id" element={<SystemAdminCompanyProfile />} />
     </Routes>
   );
 };
