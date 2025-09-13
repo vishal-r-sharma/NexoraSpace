@@ -11,7 +11,8 @@ export default function SystemAdminDashboard() {
   const [companies, setCompanies] = useState([]); // expected array from API: { success:true, companies: [...] }
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
-  const [visibleCount, setVisibleCount] = useState(6);
+  // <-- default visible cards when page first shows (changed to 8)
+  const [visibleCount, setVisibleCount] = useState(8);
   const [isFetching, setIsFetching] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
@@ -152,6 +153,7 @@ export default function SystemAdminDashboard() {
           setLoadingMore(true);
           // small simulated delay for UX
           setTimeout(() => {
+            // add 4 more on each scroll intersection
             setVisibleCount((prev) => prev + 4);
             setLoadingMore(false);
           }, 600);
@@ -177,7 +179,8 @@ export default function SystemAdminDashboard() {
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
-              setVisibleCount(6);
+              // reset visibleCount to initial 8 when filter changes
+              setVisibleCount(8);
             }}
             className="px-3 py-2 rounded-md border border-gray-600 bg-gray-700 text-sm md:text-base w-full sm:w-auto"
           >
@@ -194,7 +197,8 @@ export default function SystemAdminDashboard() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setVisibleCount(6);
+              // reset visibleCount to initial 8 when search changes
+              setVisibleCount(8);
             }}
             className="flex-1 px-3 py-2 rounded-md border border-gray-600 text-sm md:text-base focus:ring-2 focus:ring-yellow-400 outline-none bg-gray-700 w-full"
           />

@@ -514,7 +514,11 @@ export default function SystemAdminCompanyProfile() {
 
           {/* Other */}
           <Section title="Other Details">
-            <Select name="status" value={formData.status} onChange={handleChange} options={["Active", "Inactive"]} />
+            {/* ADDED: Logo URL input so admin can change the company logo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input name="logoUrl" value={formData.logoUrl} onChange={handleChange} placeholder="Company Logo URL" />
+              <Select name="status" value={formData.status} onChange={handleChange} options={["Active", "Inactive"]} />
+            </div>
           </Section>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-end">
@@ -539,10 +543,10 @@ export default function SystemAdminCompanyProfile() {
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-md ${modalType === "success"
-                        ? "bg-green-600/20 text-green-300"
-                        : modalType === "error"
-                          ? "bg-red-600/20 text-red-300"
-                          : "bg-yellow-600/20 text-yellow-300"
+                      ? "bg-green-600/20 text-green-300"
+                      : modalType === "error"
+                        ? "bg-red-600/20 text-red-300"
+                        : "bg-yellow-600/20 text-yellow-300"
                       }`}
                   >
                     {modalType === "success" ? (

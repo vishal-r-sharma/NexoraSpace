@@ -3,7 +3,6 @@ const cors = require("cors");
 require("dotenv").config();
 const cookieParser = require('cookie-parser');
 const connectDB = require("./config/mongoose_connection");
-const Company = require("./models/Company"); // import model
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 const companyRoutes = require("./routes/companyRoutes");
