@@ -1,12 +1,15 @@
-// src/App.jsx
 import React from "react";
 import AppRoutes from "./Routes/Routes";
+import { EmployeeProvider } from "./components/clientSystem/EmployeeContext";
+import { ProjectProvider } from "./components/clientSystem/ProjectContext";
 
 const App = () => {
   return (
-    <div className="app">
-      <AppRoutes />
-    </div>
+    <EmployeeProvider>
+      <ProjectProvider>
+        <AppRoutes />
+      </ProjectProvider>
+    </EmployeeProvider>
   );
 };
 

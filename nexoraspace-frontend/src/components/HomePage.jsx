@@ -23,40 +23,22 @@ export default function HomePage() {
     const navigate = useNavigate();
     const [showContact, setShowContact] = useState(false);
 
-    const handleUserLoginClick = async () => {
+    const handleLoginClick = async () => {
         try {
             // In dev: /api/auth/check → proxied to localhost:5000
             // In prod: https://api.nexoraspace.vishalsharmadev.in/api/auth/check
-            const res = await api.get("/api/auth/check/company")
+            const res = await api.get("/api/auth/check")
 
             if (res.status === 200) {
                 // ✅ token valid
-                navigate("/company/dashboard")
+                navigate("/system/dashboard")
             } else {
                 // ❌ not authenticated (should normally throw instead)
-                navigate("/company/login")
+                navigate("/system/login")
             }
         } catch (err) {
             // axios throws on 401/403
             console.error("Auth check failed:", err.response?.status, err.message)
-            navigate("/company/login")
-        }
-    }
-
-    const handleSystemAdminLoginClick = async () => {
-        try {
-            // Admin auth check — keep same endpoint unless you have a dedicated admin check.
-            // Adjust endpoint if your backend requires a different route or query param.
-            const res = await api.get("/api/auth/check")
-
-            if (res.status === 200) {
-                // Admin token valid
-                navigate("/system/dashboard")
-            } else {
-                navigate("/system/login")
-            }
-        } catch (err) {
-            console.error("Admin auth check failed:", err.response?.status, err.message)
             navigate("/system/login")
         }
     }
@@ -89,33 +71,18 @@ export default function HomePage() {
 
             {/* Header */}
             <header className="backdrop-blur-lg bg-gray-900/70 border-b border-gray-800 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
-                    <img src="/logo-white.svg" alt="NexoraSpace" className="h-10 sm:h-12 w-auto" />
-
-                    {/* Buttons container: responsive, wraps on small devices */}
-                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+                    <img src="/logo-white.svg" alt="NexoraSpace" className="h-12 w-auto" />
+                    <div className="flex items-center gap-4">
                         <button
                             onClick={() => setShowContact(true)}
-                            className="px-4 sm:px-6 py-2 rounded-full bg-gray-800 text-gray-200 border border-gray-700 hover:border-yellow-400 hover:text-yellow-400 transition text-sm sm:text-base"
-                            aria-label="Contact"
+                            className="px-6 py-2 rounded-full bg-gray-800 text-gray-200 border border-gray-700 hover:border-yellow-400 hover:text-yellow-400 transition"
                         >
                             Contact
                         </button>
-
-                        {/* System Admin login button */}
                         <button
-                            onClick={handleSystemAdminLoginClick}
-                            className="px-4 sm:px-6 py-2 rounded-full bg-transparent text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/5 transition text-sm sm:text-base"
-                            aria-label="System Admin Login"
-                        >
-                            Admin Login
-                        </button>
-
-                        {/* Regular Login button */}
-                        <button
-                            onClick={handleUserLoginClick}
-                            className="px-4 sm:px-6 py-2 rounded-full bg-yellow-500 text-black font-semibold hover:shadow-lg hover:shadow-yellow-400/40 transition text-sm sm:text-base"
-                            aria-label="User Login"
+                            onClick={handleLoginClick}
+                            className="px-6 py-2 rounded-full bg-yellow-500 text-black font-semibold hover:shadow-lg hover:shadow-yellow-400/40 transition"
                         >
                             Login
                         </button>
@@ -142,7 +109,7 @@ export default function HomePage() {
                         </p>
                         <div className="flex flex-wrap gap-4">
                             <button
-                                onClick={() => navigate("/company/login")}
+                                onClick={() => navigate("/system/login")}
                                 className="px-7 py-3 rounded-full bg-yellow-500 text-black font-semibold flex items-center gap-2 hover:shadow-lg hover:shadow-yellow-400/40 transition"
                             >
                                 Get Started <ArrowRight className="w-5 h-5" />
