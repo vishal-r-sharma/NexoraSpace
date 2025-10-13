@@ -11,6 +11,8 @@ import CompanyAdminDashboard from "../components/Company/CompanyAdmin/CompanyAdm
 import CompanyEmployeeManagement from "../components/Company/CompanyAdmin/CompanyEmployeeManagement";
 import CompanyProjects from "../components/Company/CompanyAdmin/CompanyProjects";
 import CompanyFinance from "../components/Company/CompanyAdmin/CompanyFinance";
+import CompanySetting from "../components/Company/CompanyAdmin/CompanySetting";
+import CompanyAI_General from "../components/Company/CompanyAdmin/CompanyAI_General";
 
 const AppRoutes = () => {
   return (
@@ -25,6 +27,8 @@ const AppRoutes = () => {
       <Route path="/company/admin/employee" element={<CompanyEmployeeManagement/>}/>
       <Route path="/company/admin/projects" element={<CompanyProjects />}/>
       <Route path="/company/admin/finance" element={<CompanyFinance/>}/>
+      <Route path="/company/admin/setting" element={<CompanySetting />} />
+      <Route path="/company/admin/AI" element={<CompanyAI_General />} />
     </Routes>
   );
 };

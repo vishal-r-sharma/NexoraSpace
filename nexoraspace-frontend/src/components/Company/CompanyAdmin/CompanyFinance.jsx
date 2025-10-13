@@ -16,7 +16,7 @@ import {
 import SideMenu from "./SideMenu";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import logo from "../../../assets/logo.png"; // ✅ PNG logo only (no SVG)
+import logo from "../../../assets/logo-white.png"; // ✅ PNG logo only (no SVG)
 
 /* ---------- Fancy Modal ---------- */
 function Modal({ open, title, onClose, children, footer }) {
@@ -71,184 +71,71 @@ function CompanyFinance() {
   const [selected, setSelected] = useState(null);
 
   const [invoices, setInvoices] = useState([
-  {
-    id: 1,
-    invoiceNo: "INV-1001",
-    client: "TechNova Ltd.",
-    clientEmail: "billing@technova.com",
-    clientAddress: "Plot 45, Cyber Park, Bengaluru",
-    projectName: "AI Analytics Platform",
-    issueDate: "2024-09-10",
-    dueDate: "2024-09-25",
-    amount: 250000,
-    paidAmount: 250000,
-    paymentTerms: "Net 15 days",
-    notes: "Milestone 1 payment completed.",
-    status: "Paid",
-    description: "AI Analytics project milestone 1 payment",
-  },
-  {
-    id: 2,
-    invoiceNo: "INV-1002",
-    client: "UrbanConnect Pvt. Ltd.",
-    clientEmail: "accounts@urbanconnect.in",
-    clientAddress: "25, IT Park Road, Pune, Maharashtra",
-    projectName: "IoT Smart Lighting System",
-    issueDate: "2024-10-05",
-    dueDate: "2024-10-20",
-    amount: 480000,
-    paidAmount: 200000,
-    paymentTerms: "Net 30 days",
-    notes: "Initial hardware setup completed.",
-    status: "Partial",
-    description: "IoT hardware installation for Smart City project",
-  },
-  {
-    id: 3,
-    invoiceNo: "INV-1003",
-    client: "FinSecure Bank",
-    clientEmail: "finance@finsecurebank.com",
-    clientAddress: "Bank Tower, Connaught Place, New Delhi",
-    projectName: "Blockchain Integration",
-    issueDate: "2024-08-01",
-    dueDate: "2024-08-15",
-    amount: 400000,
-    paidAmount: 0,
-    paymentTerms: "Net 14 days",
-    notes: "Awaiting first milestone payment.",
-    status: "Overdue",
-    description: "Blockchain integration for secure ledger system",
-  },
-  {
-    id: 4,
-    invoiceNo: "INV-1004",
-    client: "HealthAxis Technologies",
-    clientEmail: "finance@healthaxis.io",
-    clientAddress: "Plot 9, Health Valley, Hyderabad",
-    projectName: "Cloud Health Data Migration",
-    issueDate: "2024-09-20",
-    dueDate: "2024-10-10",
-    amount: 320000,
-    paidAmount: 320000,
-    paymentTerms: "Immediate on delivery",
-    notes: "Final milestone approved.",
-    status: "Paid",
-    description: "Migration of hospital data to AWS secure cloud",
-  },
-  {
-    id: 5,
-    invoiceNo: "INV-1005",
-    client: "GreenEnergy Corp.",
-    clientEmail: "billing@greenenergy.in",
-    clientAddress: "Solar Park, Ahmedabad, Gujarat",
-    projectName: "Energy IoT Dashboard",
-    issueDate: "2024-09-15",
-    dueDate: "2024-09-30",
-    amount: 600000,
-    paidAmount: 300000,
-    paymentTerms: "Net 30 days",
-    notes: "50% advance received.",
-    status: "Partial",
-    description: "Custom IoT dashboard for solar panel analytics",
-  },
-  {
-    id: 6,
-    invoiceNo: "INV-1006",
-    client: "EduSmart Academy",
-    clientEmail: "accounts@edusmart.edu",
-    clientAddress: "Sector 21, Gurugram, Haryana",
-    projectName: "Learning Management System (LMS)",
-    issueDate: "2024-10-01",
-    dueDate: "2024-10-15",
-    amount: 280000,
-    paidAmount: 0,
-    paymentTerms: "Net 15 days",
-    notes: "Payment pending after LMS delivery.",
-    status: "Pending",
-    description: "Development of AI-based e-learning portal",
-  },
-  {
-    id: 7,
-    invoiceNo: "INV-1007",
-    client: "NextRetail Pvt. Ltd.",
-    clientEmail: "finance@nextretail.com",
-    clientAddress: "Shop Mall Complex, Mumbai, Maharashtra",
-    projectName: "POS Software Upgrade",
-    issueDate: "2024-09-05",
-    dueDate: "2024-09-25",
-    amount: 180000,
-    paidAmount: 180000,
-    paymentTerms: "Net 20 days",
-    notes: "Project delivered successfully.",
-    status: "Paid",
-    description: "Upgraded retail POS system with analytics support",
-  },
-  {
-    id: 8,
-    invoiceNo: "INV-1008",
-    client: "BuildRight Constructions",
-    clientEmail: "accounts@buildright.in",
-    clientAddress: "Plot 4, Ring Road, Chennai",
-    projectName: "AI Safety Monitoring System",
-    issueDate: "2024-08-10",
-    dueDate: "2024-09-10",
-    amount: 350000,
-    paidAmount: 150000,
-    paymentTerms: "Net 30 days",
-    notes: "Balance to be cleared after site test.",
-    status: "Overdue",
-    description: "AI-based camera system for construction safety",
-  },
-  {
-    id: 9,
-    invoiceNo: "INV-1009",
-    client: "TravelSphere Pvt. Ltd.",
-    clientEmail: "billing@travelsphere.co.in",
-    clientAddress: "Infocity, Gandhinagar, Gujarat",
-    projectName: "Travel Booking API Integration",
-    issueDate: "2024-09-25",
-    dueDate: "2024-10-15",
-    amount: 150000,
-    paidAmount: 150000,
-    paymentTerms: "Net 20 days",
-    notes: "Full payment received before deployment.",
-    status: "Paid",
-    description: "Integrated booking API with CRM for travel portal",
-  },
-  {
-    id: 10,
-    invoiceNo: "INV-1010",
-    client: "AquaFlow Systems",
-    clientEmail: "finance@aquaflow.io",
-    clientAddress: "Tech Park, Kochi, Kerala",
-    projectName: "IoT Water Flow Monitoring",
-    issueDate: "2024-10-01",
-    dueDate: "2024-10-20",
-    amount: 220000,
-    paidAmount: 110000,
-    paymentTerms: "Net 20 days",
-    notes: "Phase 1 delivered successfully.",
-    status: "Partial",
-    description: "Deployment of IoT water metering system",
-  },
-  {
-    id: 11,
-    invoiceNo: "INV-1011",
-    client: "MediQuick Labs",
-    clientEmail: "accounts@mediquicklab.com",
-    clientAddress: "Sector 18, Noida, Uttar Pradesh",
-    projectName: "Diagnostic Data Platform",
-    issueDate: "2024-09-12",
-    dueDate: "2024-09-28",
-    amount: 310000,
-    paidAmount: 310000,
-    paymentTerms: "Immediate",
-    notes: "All deliverables completed and verified.",
-    status: "Paid",
-    description: "Cloud-based diagnostics platform for lab data",
-  },
-]);
-
+    {
+      id: 1,
+      invoiceNo: "INV-1001",
+      client: "TechNova Ltd.",
+      clientEmail: "billing@technova.com",
+      clientAddress: "Plot 45, Cyber Park, Bengaluru",
+      projectName: "AI Analytics Platform",
+      issueDate: "2024-09-10",
+      dueDate: "2024-09-25",
+      amount: 250000,
+      paidAmount: 250000,
+      paymentTerms: "Net 15 days",
+      notes: "Milestone 1 payment completed.",
+      status: "Paid",
+      description: "AI Analytics project milestone 1 payment",
+    },
+    {
+      id: 2,
+      invoiceNo: "INV-1002",
+      client: "UrbanConnect Pvt. Ltd.",
+      clientEmail: "accounts@urbanconnect.in",
+      clientAddress: "25, IT Park Road, Pune, Maharashtra",
+      projectName: "IoT Smart Lighting System",
+      issueDate: "2024-10-05",
+      dueDate: "2024-10-20",
+      amount: 480000,
+      paidAmount: 200000,
+      paymentTerms: "Net 30 days",
+      notes: "Initial hardware setup completed.",
+      status: "Partial",
+      description: "IoT hardware installation for Smart City project",
+    },
+    {
+      id: 3,
+      invoiceNo: "INV-1003",
+      client: "FinSecure Bank",
+      clientEmail: "finance@finsecurebank.com",
+      clientAddress: "Bank Tower, Connaught Place, New Delhi",
+      projectName: "Blockchain Integration",
+      issueDate: "2024-08-01",
+      dueDate: "2024-08-15",
+      amount: 400000,
+      paidAmount: 0,
+      paymentTerms: "Net 14 days",
+      notes: "Awaiting first milestone payment.",
+      status: "Overdue",
+      description: "Blockchain integration for secure ledger system",
+    },
+    {
+      id: 4,
+      invoiceNo: "INV-1004",
+      client: "HealthAxis Technologies",
+      clientEmail: "finance@healthaxis.io",
+      clientAddress: "Plot 9, Health Valley, Hyderabad",
+      projectName: "Cloud Health Data Migration",
+      issueDate: "2024-09-20",
+      dueDate: "2024-10-10",
+      amount: 320000,
+      paidAmount: 320000,
+      paymentTerms: "Immediate on delivery",
+      notes: "Final milestone approved.",
+      status: "Paid",
+      description: "Migration of hospital data to AWS secure cloud",
+    },
+  ]);
 
   const emptyForm = useMemo(
     () => ({
@@ -272,18 +159,40 @@ function CompanyFinance() {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
 
+  // ✅ Generate a unique random invoice number
+  // ✅ Generate a unique invoice number like INV-13102025-4721
+  const generateUniqueInvoiceNo = () => {
+    let uniqueNo;
+    do {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, "0");
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const year = now.getFullYear();
+      const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit random
+      uniqueNo = `INV-${day}${month}${year}-${randomNum}`;
+    } while (invoices.some((inv) => inv.invoiceNo === uniqueNo));
+    return uniqueNo;
+  };
+
+
   const openModal = (type, invoice = null) => {
     setErrors({});
     setSelected(invoice);
-    if (type === "edit" && invoice) setForm(invoice);
-    else setForm(emptyForm);
+    if (type === "edit" && invoice) {
+      setForm(invoice);
+    } else {
+      setForm({
+        ...emptyForm,
+        invoiceNo: generateUniqueInvoiceNo(), // auto-generated
+      });
+    }
     setModal({ open: true, type });
   };
+
   const closeModal = () => setModal({ open: false, type: "add" });
 
   const validate = () => {
     const e = {};
-    if (!form.invoiceNo) e.invoiceNo = "Invoice number required";
     if (!form.client) e.client = "Client name required";
     if (!form.amount) e.amount = "Amount required";
     if (!form.issueDate) e.issueDate = "Select issue date";
@@ -309,32 +218,30 @@ function CompanyFinance() {
     closeModal();
   };
 
-  /* ---------- FIXED PDF GENERATOR ---------- */
+  /* ---------- PDF GENERATOR ---------- */
   const generatePDF = (invoice) => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const color = [41, 128, 185];
+    const color = [13, 19, 33];
 
     const companyName = "NexoraSpace Pvt. Ltd.";
-    const companyAddress = "B-45, Sector 62, Noida, Uttar Pradesh, India";
+    const companyAddress = "B-45, Sector 62, Noida,  Uttar Pradesh, India";
     const companyEmail = "support@nexoraspace.com";
     const companyPhone = "+91 98765 43210";
 
-    // Header
     doc.setFillColor(...color);
     doc.rect(0, 0, pageWidth, 90, "F");
-    doc.addImage(logo, "PNG", 40, 25, 90, 40);
+    doc.addImage(logo, "PNG", 40, 25, 150, 60);
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(26);
-    doc.text("INVOICE", pageWidth - 140, 50);
+    doc.text("TAX INVOICE", pageWidth - 200, 50);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(`Email: ${companyEmail}`, pageWidth - 200, 70);
     doc.text(`Phone: ${companyPhone}`, pageWidth - 200, 82);
 
-    // Bill To
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
@@ -344,7 +251,6 @@ function CompanyFinance() {
     doc.text(invoice.clientEmail || "—", 40, 160);
     doc.text(invoice.clientAddress || "—", 40, 175);
 
-    // Invoice Info
     doc.setFont("helvetica", "bold");
     doc.text("Invoice Details:", pageWidth - 240, 130);
     doc.setFont("helvetica", "normal");
@@ -353,22 +259,19 @@ function CompanyFinance() {
     doc.text(`Due Date: ${invoice.dueDate}`, pageWidth - 240, 175);
     doc.text(`Status: ${invoice.status}`, pageWidth - 240, 190);
 
-    // Project
     doc.setFont("helvetica", "bold");
     doc.text("Project:", 40, 210);
     doc.setFont("helvetica", "normal");
     doc.text(invoice.projectName || "—", 110, 210);
 
-    // Description
     doc.setFont("helvetica", "bold");
     doc.text("Description:", 40, 230);
     doc.setFont("helvetica", "normal");
     doc.text(invoice.description || "—", 130, 230, { maxWidth: pageWidth - 160 });
 
-    // Table
     autoTable(doc, {
       startY: 250,
-      head: [["Particulars", "Total (₹)", "Paid (₹)", "Balance (₹)"]],
+      head: [["Particulars", "Total INR", "Paid INR", "Balance INR"]],
       body: [
         [
           invoice.notes || "—",
@@ -385,7 +288,6 @@ function CompanyFinance() {
     const finalY = doc.lastAutoTable.finalY + 30;
     const balance = (invoice.amount || 0) - (invoice.paidAmount || 0);
 
-    // Payment Summary box
     const boxWidth = 230;
     const boxX = pageWidth - boxWidth - 50;
     const boxY = finalY;
@@ -394,21 +296,22 @@ function CompanyFinance() {
     doc.setFont("helvetica", "bold");
     doc.text("Payment Summary", boxX + 20, boxY + 20);
     doc.setFont("helvetica", "normal");
-    doc.text(`Subtotal: ₹${invoice.amount.toLocaleString()}`, boxX + 20, boxY + 40);
-    doc.text(`Paid: ₹${invoice.paidAmount.toLocaleString()}`, boxX + 20, boxY + 60);
-    doc.text(`Balance Due: ₹${balance.toLocaleString()}`, boxX + 20, boxY + 80);
+    doc.text(`Subtotal: INR ${invoice.amount.toLocaleString()}`, boxX + 20, boxY + 40);
+    doc.text(`Paid: INR ${invoice.paidAmount.toLocaleString()}`, boxX + 20, boxY + 60);
+    doc.text(`Balance Due: INR ${balance.toLocaleString()}`, boxX + 20, boxY + 80);
 
-    // Terms & Notes
-    doc.setFont("helvetica", "bold");
-    doc.text("Payment Terms:", 40, boxY + 30);
-    doc.setFont("helvetica", "normal");
-    doc.text(invoice.paymentTerms || "—", 160, boxY + 30);
-    doc.setFont("helvetica", "bold");
-    doc.text("Notes:", 40, boxY + 50);
-    doc.setFont("helvetica", "normal");
-    doc.text(invoice.notes || "—", 100, boxY + 50, { maxWidth: 350 });
 
-    // Digital Signature
+    // ✅ Added Banking Details
+    const bankY = boxY + 120;
+    doc.setFont("helvetica", "bold");
+    doc.text("Banking Details", 40, bankY);
+    doc.setFont("helvetica", "normal");
+    doc.text("Bank Name: HDFC Bank Ltd.", 40, bankY + 20);
+    doc.text("Branch: Sector 62, Noida", 40, bankY + 35);
+    doc.text("Account Number: 123456789012", 40, bankY + 50);
+    doc.text("IFSC Code: HDFC0001234", 40, bankY + 65);
+
+
     const sigId = `SIG-${Math.floor(Math.random() * 1000000)}`;
     const sigDate = new Date().toLocaleString("en-IN", {
       dateStyle: "medium",
@@ -444,7 +347,10 @@ function CompanyFinance() {
   ).length;
 
   const filtered = invoices.filter((i) =>
-    [i.invoiceNo, i.client, i.status].join(" ").toLowerCase().includes(search.toLowerCase())
+    [i.invoiceNo, i.client, i.status]
+      .join(" ")
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
   return (
@@ -588,8 +494,8 @@ function InvoiceModals({
             <input
               type="text"
               value={form.invoiceNo}
-              onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })}
-              className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              readOnly
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-gray-400 cursor-not-allowed"
             />
           </Field>
           <Field label="Client Name" required error={errors.client}>
@@ -689,7 +595,9 @@ function InvoiceModals({
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             >
               {statusOptions.map((s) => (
-                <option key={s} className="bg-[#0d1321]">{s}</option>
+                <option key={s} className="bg-[#0d1321]">
+                  {s}
+                </option>
               ))}
             </select>
           </Field>
@@ -717,13 +625,28 @@ function InvoiceModals({
             <h2 className="text-xl font-semibold">{selected.invoiceNo}</h2>
             <p className="text-white/70">{selected.description}</p>
             <div className="grid md:grid-cols-2 gap-3 text-white/90">
-              <p><strong>Client:</strong> {selected.client}</p>
-              <p><strong>Status:</strong> {selected.status}</p>
-              <p><strong>Issue Date:</strong> {selected.issueDate}</p>
-              <p><strong>Due Date:</strong> {selected.dueDate}</p>
-              <p><strong>Total:</strong> ₹{selected.amount.toLocaleString()}</p>
-              <p><strong>Paid:</strong> ₹{selected.paidAmount.toLocaleString()}</p>
-              <p><strong>Balance:</strong> ₹{(selected.amount - selected.paidAmount).toLocaleString()}</p>
+              <p>
+                <strong>Client:</strong> {selected.client}
+              </p>
+              <p>
+                <strong>Status:</strong> {selected.status}
+              </p>
+              <p>
+                <strong>Issue Date:</strong> {selected.issueDate}
+              </p>
+              <p>
+                <strong>Due Date:</strong> {selected.dueDate}
+              </p>
+              <p>
+                <strong>Total:</strong> ₹{selected.amount.toLocaleString()}
+              </p>
+              <p>
+                <strong>Paid:</strong> ₹{selected.paidAmount.toLocaleString()}
+              </p>
+              <p>
+                <strong>Balance:</strong> ₹
+                {(selected.amount - selected.paidAmount).toLocaleString()}
+              </p>
             </div>
           </div>
         )}
@@ -753,7 +676,8 @@ function InvoiceModals({
       >
         <p className="text-white/85">
           Are you sure you want to delete{" "}
-          <span className="font-semibold">{selected?.invoiceNo}</span>? This action cannot be undone.
+          <span className="font-semibold">{selected?.invoiceNo}</span>? This
+          action cannot be undone.
         </p>
       </Modal>
     </>

@@ -6,12 +6,12 @@ import {
   Briefcase,
   DollarSign,
   Settings,
-  BarChart2,
   LogOut,
   Home,
   Bell,
   MessageCircle,
   User,
+  BotMessageSquare,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -38,8 +38,8 @@ function SideMenu() {
     { icon: <Users />, label: "Employees", path: "/company/admin/employee" },
     { icon: <Briefcase />, label: "Projects", path: "/company/admin/projects" },
     { icon: <DollarSign />, label: "Finance", path: "/company/admin/finance" },
-    { icon: <BarChart2 />, label: "Reports" },
-    { icon: <Settings />, label: "Settings" },
+    { icon: <BotMessageSquare />, label: "AI", path: "/company/admin/AI"},
+    { icon: <Settings />, label: "Settings", path: "/company/admin/setting"},
     { icon: <Bell />, label: "Notifications", action: () => setShowNotifications(true) },
     { icon: <MessageCircle />, label: "Contact Support", action: () => setShowSupportForm(true) },
   ];
@@ -80,16 +80,30 @@ function SideMenu() {
               NexoraSpace Pvt Ltd
             </h2>
 
-            {/* User Info */}
-            <div className="bg-[#1b263b] p-4 rounded-xl w-52 text-center shadow-lg border border-[#2c3e50]">
-              <div className="flex justify-center mb-2">
-                <div className="bg-[#6fb1fc] p-2 rounded-full">
-                  <User className="text-[#0d1321]" size={20} />
+            {/* 🧑 Redesigned User Info Section */}
+            <div className="flex items-center justify-center bg-[#1b263b]/60 border border-[#2c3e50] rounded-xl p-3 w-52 mx-auto shadow-inner hover:shadow-[#6fb1fc]/20 transition-all duration-300">
+              <div className="flex items-center space-x-3">
+                {/* Avatar */}
+                <div className="relative">
+                  <div className="bg-[#6fb1fc] p-2.5 rounded-full flex items-center justify-center shadow-sm">
+                    <User className="text-[#0d1321]" size={18} />
+                  </div>
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-[#1b263b] rounded-full"></div>
+                </div>
+
+                {/* Info */}
+                <div className="text-left leading-tight">
+                  <p className="font-semibold text-m text-white truncate max-w-[110px]">
+                    {user.name}
+                  </p>
+                  <p className="text-[11px] text-gray-400 truncate max-w-[110px]">
+                    {user.email}
+                  </p>
+                  <p className="text-[10px] text-gray-500 italic">
+                    {user.role}
+                  </p>
                 </div>
               </div>
-              <p className="font-semibold text-white">{user.name}</p>
-              <p className="text-sm text-gray-400">{user.email}</p>
-              <p className="text-xs text-gray-500 mt-1 italic">{user.role}</p>
             </div>
           </div>
 
