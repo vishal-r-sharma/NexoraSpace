@@ -2,80 +2,101 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import api from "../api/axios"; // adjust path if your instance is elsewhere
+import api from "../api/axios";
 
 export default function SystemAdminLogin() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [checking, setChecking] = useState(true); // checking existing session on mount
+  const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // On mount: check /api/auth/check to see if token cookie exists & is valid
+  /**
+   * ✅ On Mount — Verify existing session using systemtoken cookie
+   */
   useEffect(() => {
     let mounted = true;
-    (async () => {
+
+    const verifySession = async () => {
       try {
-        const res = await api.get("/api/auth/check"); // uses baseURL from your axios instance
+        const res = await api.get("/api/auth/systemadmin/check", {
+          withCredentials: true,
+        });
+
         if (!mounted) return;
-        if (res.status === 200) {
-          // already authenticated -> go to dashboard
-          navigate("/system/dashboard");
+
+        if (res.status === 200 && res.data?.authenticated) {
+          console.log("✅ Existing system admin session:", res.data.user);
+          // Redirect to dashboard if token valid
+          window.location.href = "/system/dashboard";
         } else {
-          setChecking(false); // show login form (unlikely for axios but kept for parity)
+          console.log("🔒 No valid systemtoken found");
+          setChecking(false);
         }
       } catch (err) {
-        // network or 401/403 -> show login form
-        if (!mounted) return;
+        console.log("❌ Auth check failed:", err.response?.data || err.message);
         setChecking(false);
       }
-    })();
+    };
+
+    verifySession();
+
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, []);
 
+  /**
+   * 🔐 Handle Login Submission
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const res = await api.post("/api/auth/login", { email, password });
-      // axios will treat 2xx as success
-      if (res.status === 200) {
-        // login successful — cookie already set by server
-        navigate("/system/dashboard");
+      const res = await api.post(
+        "/api/auth/systemadmin/login",
+        { email, password },
+        { withCredentials: true }
+      );
+
+      if (res.data?.success) {
+        console.log("✅ Login success:", res.data.user);
+        // Force full reload (ensures cookie takes effect)
+        window.location.href = "/system/dashboard";
       } else {
-        // unlikely, but handle
         setError(res.data?.error || "Invalid credentials");
       }
     } catch (err) {
-      // extract server error message if any
-      const serverMsg = err?.response?.data?.error;
-      if (serverMsg) setError(serverMsg);
-      else {
-        console.error("Login error:", err);
-        setError("Network error — please try again");
-      }
+      console.error("❌ Login error:", err.response?.data || err.message);
+      setError(err.response?.data?.error || "Login failed. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * 🕓 Show loader while verifying session
+   */
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-100 px-4">
-        <div className="text-center">Checking session…</div>
+        <div className="text-center space-y-3">
+          <div className="animate-spin h-10 w-10 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto"></div>
+          <p>Checking authentication...</p>
+        </div>
       </div>
     );
   }
 
+  /**
+   * 💛 Login Form
+   */
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-100 px-4">
-      {/* Card */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -102,7 +123,10 @@ export default function SystemAdminLogin() {
         {/* Form */}
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
               Email
             </label>
             <input
@@ -118,7 +142,10 @@ export default function SystemAdminLogin() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
               Password
             </label>
             <input

@@ -10,7 +10,7 @@ const SystemAdminNavbar = () => {
     try {
       // This will call /api/auth/logout in dev (proxied to localhost:5000)
       // and https://api.nexoraspace.vishalsharmadev.in/api/auth/logout in production
-      const res = await api.post("/api/auth/logout")
+      const res = await api.post("/api/auth/systemadmin/logout")
 
       if (res.status === 200 || res.status === 204) {
         // ✅ Cookie cleared successfully on backend

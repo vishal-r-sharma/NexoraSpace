@@ -6,6 +6,7 @@ const connectDB = require("./config/mongoose_connection");
 
 const authRoutes = require("./routes/authRoutes");
 const companyRoutes = require("./routes/companyRoutes");
+const systemAuthRoutes = require("./routes/systemAuthRoutes")
 
 const app = express();
 
@@ -29,6 +30,7 @@ connectDB();
 // ✅ Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/company", companyRoutes);
+app.use("/api/auth/systemadmin", systemAuthRoutes)
 
 app.get("/", (req, res) => res.send("🚀 NexoraSpace Backend Running..."));
 

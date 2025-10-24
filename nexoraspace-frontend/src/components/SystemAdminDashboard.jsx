@@ -101,7 +101,7 @@ export default function SystemAdminDashboard() {
 
         const status = err?.response?.status;
         if (status === 401) {
-          navigate("/login");
+          navigate("/system/login");
           return;
         }
 
