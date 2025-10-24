@@ -10,20 +10,19 @@ const FeaturesSchema = new mongoose.Schema(
     billingSystem: { type: Boolean, default: false },
     aiAssistant: { type: Boolean, default: false },
   },
-  { _id: false }
 );
 
 // ----------------------
-// Main Company Detail Schema
+// Main Company Detail Schema (NO INDEXING)
 // ----------------------
 const CompanyDetailSchema = new mongoose.Schema(
   {
     companyName: { type: String, required: true, trim: true },
     companyType: { type: String, required: true, trim: true },
-    registrationNumber: { type: String, required: true, trim: true },
-    panNumber: { type: String, required: true, trim: true },
-    gstNumber: { type: String, required: true, trim: true },
-    cinNumber: { type: String, required: true, trim: true },
+    registrationNumber: { type: String, trim: true }, // ✅ no unique
+    panNumber: { type: String, trim: true },
+    gstNumber: { type: String, trim: true },
+    cinNumber: { type: String, trim: true },
     dateOfIncorporation: { type: Date, required: true },
     authorisedCapital: { type: Number, required: true },
     paidUpCapital: { type: Number, required: true },
@@ -38,8 +37,8 @@ const CompanyDetailSchema = new mongoose.Schema(
     pincode: { type: String, required: true, trim: true },
     country: { type: String, required: true, trim: true },
 
-    email: { type: String, required: true, lowercase: true, trim: true },
-    phone: { type: String, required: true, trim: true },
+    email: { type: String, lowercase: true, trim: true },
+    phone: { type: String, trim: true },
 
     website: { type: String, trim: true },
     socialMedia: { type: String, trim: true },
@@ -55,6 +54,10 @@ const CompanyDetailSchema = new mongoose.Schema(
       enum: ["Active", "Inactive"],
       default: "Active",
     },
+
+    // ✅ Login fields
+    loginEmail: { type: String, trim: true, lowercase: true, default: null },
+    loginPassword: { type: String, trim: true, default: null },
 
     // 🔗 Relations
     loginDataRef: {
@@ -72,18 +75,11 @@ const CompanyDetailSchema = new mongoose.Schema(
   { timestamps: true, collection: "companydetails" }
 );
 
-// ----------------------
-// Indexes
-// ----------------------
-CompanyDetailSchema.index({ companyName: "text" });
-CompanyDetailSchema.index({ registrationNumber: 1 }, { unique: true });
-CompanyDetailSchema.index({ panNumber: 1 }, { unique: true });
-CompanyDetailSchema.index({ gstNumber: 1 }, { unique: true });
-CompanyDetailSchema.index({ cinNumber: 1 }, { unique: true });
-CompanyDetailSchema.index({ email: 1 }, { unique: true, sparse: true });
+// ❌ REMOVE ALL INDEXES — make sure no index is created
+CompanyDetailSchema.set("autoIndex", false);
 
 // ----------------------
 // Export
 // ----------------------
 const CompanyDetail = mongoose.model("CompanyDetail", CompanyDetailSchema);
-module.exports = {CompanyDetail};
+module.exports = { CompanyDetail };
