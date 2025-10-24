@@ -1,97 +1,89 @@
-// companyDetail.model.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const mongoose = require("mongoose");
 
-const SALT_ROUNDS = 10;
+// ----------------------
+// Sub-schema for features toggle
+// ----------------------
+const FeaturesSchema = new mongoose.Schema(
+  {
+    employeeManagement: { type: Boolean, default: false },
+    projectManagement: { type: Boolean, default: false },
+    billingSystem: { type: Boolean, default: false },
+    aiAssistant: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
 
-const FeaturesSchema = new mongoose.Schema({
-  employeeManagement: { type: Boolean, required: true, default: false },
-  projectManagement:  { type: Boolean, required: true, default: false },
-  billingSystem:      { type: Boolean, required: true, default: false },
-}, { _id: false });
+// ----------------------
+// Main Company Detail Schema
+// ----------------------
+const CompanyDetailSchema = new mongoose.Schema(
+  {
+    companyName: { type: String, required: true, trim: true },
+    companyType: { type: String, required: true, trim: true },
+    registrationNumber: { type: String, required: true, trim: true },
+    panNumber: { type: String, required: true, trim: true },
+    gstNumber: { type: String, required: true, trim: true },
+    cinNumber: { type: String, required: true, trim: true },
+    dateOfIncorporation: { type: Date, required: true },
+    authorisedCapital: { type: Number, required: true },
+    paidUpCapital: { type: Number, required: true },
+    directors: [{ type: String, trim: true }],
+    mainBusinessActivity: { type: String, required: true, trim: true },
+    numberOfEmployees: { type: Number, default: 0 },
 
-const CompanyDetailSchema = new mongoose.Schema({
-  companyName: { type: String, required: true, trim: true },
-  companyType: { type: String, required: true, trim: true }, // e.g. Private Limited
-  registrationNumber: { type: String, required: true, trim: true },
-  panNumber: { type: String, required: true, trim: true },
-  gstNumber: { type: String, required: true, trim: true },
-  cinNumber: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    registeredAddress: { type: String, required: true, trim: true },
+    city: { type: String, required: true, trim: true },
+    state: { type: String, required: true, trim: true },
+    pincode: { type: String, required: true, trim: true },
+    country: { type: String, required: true, trim: true },
 
-  dateOfIncorporation: { type: Date, required: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    phone: { type: String, required: true, trim: true },
 
-  authorisedCapital: { type: Number, required: true, min: 0 },
-  paidUpCapital: { type: Number, required: true, min: 0 },
+    website: { type: String, trim: true },
+    socialMedia: { type: String, trim: true },
 
-  directors: { type: [String], required: true }, // array of director names
-  mainBusinessActivity: { type: String, required: true, trim: true },
-  numberOfEmployees: { type: Number, required: true, min: 0 },
+    bankName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+    ifscCode: { type: String, trim: true },
+    branch: { type: String, trim: true },
 
-  description: { type: String, required: true, trim: true },
+    logoUrl: { type: String, trim: true },
+    status: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Active",
+    },
 
-  registeredAddress: { type: String, required: true, trim: true },
-  city: { type: String, required: true, trim: true },
-  state: { type: String, required: true, trim: true },
-  pincode: { type: String, required: true, trim: true },
-  country: { type: String, required: true, trim: true },
+    // 🔗 Relations
+    loginDataRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "LoginData",
+      default: null,
+    },
+    employees: [{ type: mongoose.Schema.Types.ObjectId, ref: "Employee" }],
+    projects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Project" }],
+    billings: [{ type: mongoose.Schema.Types.ObjectId, ref: "Billing" }],
+    aiChats: [{ type: mongoose.Schema.Types.ObjectId, ref: "AIChat" }],
 
-  email: { type: String, required: true, trim: true, lowercase: true },
-  phone: { type: String, required: true, trim: true },
+    features: { type: FeaturesSchema, default: () => ({}) },
+  },
+  { timestamps: true, collection: "companydetails" }
+);
 
-  website: { type: String, required: true, trim: true },
-  socialMedia: { type: String, required: true, trim: true },
+// ----------------------
+// Indexes
+// ----------------------
+CompanyDetailSchema.index({ companyName: "text" });
+CompanyDetailSchema.index({ registrationNumber: 1 }, { unique: true });
+CompanyDetailSchema.index({ panNumber: 1 }, { unique: true });
+CompanyDetailSchema.index({ gstNumber: 1 }, { unique: true });
+CompanyDetailSchema.index({ cinNumber: 1 }, { unique: true });
+CompanyDetailSchema.index({ email: 1 }, { unique: true, sparse: true });
 
-  bankName: { type: String, required: true, trim: true },
-  accountNumber: { type: String, required: true, trim: true },
-  ifscCode: { type: String, required: true, trim: true },
-  branch: { type: String, required: true, trim: true },
-
-  logoUrl: { type: String, required: true, trim: true },
-
-  status: { type: String, required: true, enum: ['Active', 'Inactive'], default: 'Active' },
-
-  loginEmail: { type: String, required: true, trim: true, lowercase: true },
-  loginPassword: { type: String, required: true }, // hashed before save
-
-  features: { type: FeaturesSchema, required: true, default: () => ({}) },
-
-}, { timestamps: true, collection: 'companydetails' });
-
-/**
- * Indexes:
- * - companyName: text index to support text search
- * - registrationNumber, panNumber, gstNumber, cinNumber, email, loginEmail: unique where likely required
- * Adjust unique constraints to your business rules before enabling in production.
- */
-CompanyDetailSchema.index({ companyName: 'text' });
-CompanyDetailSchema.index({ registrationNumber: 1 }, { unique: true, name: 'idx_registrationNumber_unique' });
-CompanyDetailSchema.index({ panNumber: 1 }, { unique: true, name: 'idx_pan_unique' });
-CompanyDetailSchema.index({ gstNumber: 1 }, { unique: true, name: 'idx_gst_unique' });
-CompanyDetailSchema.index({ cinNumber: 1 }, { unique: true, name: 'idx_cin_unique' });
-CompanyDetailSchema.index({ email: 1 }, { unique: true, sparse: true, name: 'idx_email_unique' });
-CompanyDetailSchema.index({ loginEmail: 1 }, { unique: true, name: 'idx_loginEmail_unique' });
-
-/**
- * Pre-save: hash loginPassword if modified.
- * Note: ensure you call .save() on the Mongoose document; the hook will hash password automatically.
- */
-CompanyDetailSchema.pre('save', async function (next) {
-  try {
-    if (this.isModified('loginPassword')) {
-      const salt = await bcrypt.genSalt(SALT_ROUNDS);
-      this.loginPassword = await bcrypt.hash(this.loginPassword, salt);
-    }
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Optional: method to compare password (useful when authenticating)
-CompanyDetailSchema.methods.comparePassword = function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.loginPassword);
-};
-
-const CompanyDetail = mongoose.model('CompanyDetail', CompanyDetailSchema);
-
-module.exports = CompanyDetail;
+// ----------------------
+// Export
+// ----------------------
+const CompanyDetail = mongoose.model("CompanyDetail", CompanyDetailSchema);
+module.exports = {CompanyDetail};

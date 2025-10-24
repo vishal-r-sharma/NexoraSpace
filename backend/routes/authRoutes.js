@@ -1,16 +1,21 @@
+// routes/authRoutes.js
 const express = require("express");
 const router = express.Router();
-const {login, logout, registerSystem} = require("../controllers/authController")
-const authMiddleware = require("../middleware/authMiddleware")
+const { login, logout } = require("../controllers/authController");
+const companyAuth = require("../middleware/companyAuth");
 
+// 🔐 Company Login
+router.post("/login", login);
 
-router.post("/register", registerSystem)
-router.post("/login", login)
-router.post("/logout", logout)
+// 🚪 Logout
+router.post("/logout", logout);
 
-// protected check route — middleware attaches req.user
-router.get("/check", authMiddleware, (req, res) => {
-  return res.status(200).json({ authenticated: true, user: req.user });
+// 🛡️ Check company token validity
+router.get("/check", companyAuth, (req, res) => {
+  return res.status(200).json({
+    authenticated: true,
+    user: req.user || req.companyUser, // unified
+  });
 });
 
 module.exports = router;

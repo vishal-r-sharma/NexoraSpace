@@ -1,18 +1,22 @@
 // src/api/axios.js
-import axios from 'axios'
+import axios from "axios";
 
-const isDev = import.meta.env.MODE === 'development'
+// Detect mode
+const isDev = import.meta.env.MODE === "development";
 
-// If you prefer an explicit override, set VITE_API_URL in .env.production
-const prodApi = import.meta.env.VITE_API_URL || 'https://api.nexoraspace.vishalsharmadev.in'
+// Backend base URLs
+const devApi = "http://localhost:5000"; // local backend
+const prodApi =
+  import.meta.env.VITE_API_URL || "https://api.nexoraspace.vishalsharmadev.in";
 
-// In dev use relative '/api' so Vite proxy handles forwarding to localhost:5000
-const baseURL = isDev ? '' : prodApi
+// Choose correct base URL
+const baseURL = isDev ? devApi : prodApi;
 
+// Create axios instance
 const api = axios.create({
-    baseURL,
-    timeout: 10000,
-    withCredentials: true, // include cookies for every request
-})
+  baseURL,
+  timeout: 10000,
+  withCredentials: true, // ✅ send & receive cookies
+});
 
-export default api
+export default api;

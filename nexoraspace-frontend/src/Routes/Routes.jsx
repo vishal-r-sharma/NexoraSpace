@@ -23,7 +23,7 @@ const AppRoutes = () => {
       <Route path="/system/add-company" element={<SystemAdminAddCompany />} />
       <Route path="/system/company/:id" element={<SystemAdminCompanyProfile />} />
       <Route path="/company/login" element={<CompanyLogin />} />
-      <Route path="/company/admin/dashboard" element={<CompanyAdminDashboard/>} />
+      <Route path="/company/admin/dashboard/:id/:id" element={<CompanyAdminDashboard/>} />
       <Route path="/company/admin/employee" element={<CompanyEmployeeManagement/>}/>
       <Route path="/company/admin/projects" element={<CompanyProjects />}/>
       <Route path="/company/admin/finance" element={<CompanyFinance/>}/>
