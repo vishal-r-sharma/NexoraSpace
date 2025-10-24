@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require("path");
 const fs = require("fs-extra");
 const multer = require("multer");
-const authMiddleware = require("../middleware/authMiddleware");
+const companyAuth = require("../middleware/companyAuth")
 const { CompanyEmployee } = require("../models/employee.model");
 const { CompanyDetail } = require("../models/companyDetail.model");
 
@@ -33,7 +33,7 @@ const upload = multer({ storage: tempStorage });
 /* ------------------------------------------------------
    ✅ ADD EMPLOYEE (creates correct folder)
 ------------------------------------------------------ */
-router.post("/add", authMiddleware, upload.array("documents"), async (req, res) => {
+router.post("/add", companyAuth, upload.array("documents"), async (req, res) => {
   try {
     const { companyRef, name, email, position, project, status, joiningDate } = req.body;
     if (!companyRef || !name || !email || !position)
@@ -94,7 +94,7 @@ router.post("/add", authMiddleware, upload.array("documents"), async (req, res) 
 /* ------------------------------------------------------
    ✅ LIST EMPLOYEES
 ------------------------------------------------------ */
-router.get("/list/:companyRef", authMiddleware, async (req, res) => {
+router.get("/list/:companyRef", companyAuth, async (req, res) => {
   try {
     const empDoc = await CompanyEmployee.findOne({ companyRef: req.params.companyRef }).lean();
     if (!empDoc) return res.json({ success: true, employees: [] });
@@ -108,7 +108,7 @@ router.get("/list/:companyRef", authMiddleware, async (req, res) => {
 /* ------------------------------------------------------
    ✅ GET SINGLE EMPLOYEE (for Edit)
 ------------------------------------------------------ */
-router.get("/:companyRef/:employeeId", authMiddleware, async (req, res) => {
+router.get("/:companyRef/:employeeId", companyAuth, async (req, res) => {
   try {
     const { companyRef, employeeId } = req.params;
     const empDoc = await CompanyEmployee.findOne({ companyRef }).lean();
@@ -127,7 +127,7 @@ router.get("/:companyRef/:employeeId", authMiddleware, async (req, res) => {
 /* ------------------------------------------------------
    ✅ UPDATE EMPLOYEE (Add/Replace Docs)
 ------------------------------------------------------ */
-router.put("/:companyRef/:employeeId", authMiddleware, upload.array("documents"), async (req, res) => {
+router.put("/:companyRef/:employeeId", companyAuth, upload.array("documents"), async (req, res) => {
   try {
     const { companyRef, employeeId } = req.params;
     const { name, email, position, project, status, joiningDate } = req.body;
@@ -169,7 +169,7 @@ router.put("/:companyRef/:employeeId", authMiddleware, upload.array("documents")
 /* ------------------------------------------------------
    ✅ DELETE SINGLE DOCUMENT (from one employee)
 ------------------------------------------------------ */
-router.delete("/:companyRef/:employeeId/document/:docId", authMiddleware, async (req, res) => {
+router.delete("/:companyRef/:employeeId/document/:docId", companyAuth, async (req, res) => {
   try {
     const { companyRef, employeeId, docId } = req.params;
     const empDoc = await CompanyEmployee.findOne({ companyRef });
@@ -202,7 +202,7 @@ router.delete("/:companyRef/:employeeId/document/:docId", authMiddleware, async 
 /* ------------------------------------------------------
    ✅ DELETE EMPLOYEE + CLEANUP old folders
 ------------------------------------------------------ */
-router.delete("/:companyRef/:employeeId", authMiddleware, async (req, res) => {
+router.delete("/:companyRef/:employeeId", companyAuth, async (req, res) => {
   try {
     const { companyRef, employeeId } = req.params;
     const empDoc = await CompanyEmployee.findOne({ companyRef });

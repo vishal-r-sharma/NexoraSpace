@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Plus,
   Edit,
@@ -16,7 +16,7 @@ import {
 import SideMenu from "./SideMenu";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import logo from "../../../assets/logo-white.png"; // ✅ PNG logo only (no SVG)
+import api from "../../../api/axios"; // ✅ axios instance (withCredentials: true)
 
 /* ---------- Fancy Modal ---------- */
 function Modal({ open, title, onClose, children, footer }) {
@@ -26,8 +26,7 @@ function Modal({ open, title, onClose, children, footer }) {
       <div onClick={onClose} className="absolute inset-0" aria-hidden="true" />
       <div
         className="relative w-full max-w-2xl rounded-2xl bg-gradient-to-br from-[#0d1321] to-[#141b2f]
-        text-white shadow-2xl border border-white/10 ring-1 ring-white/10
-        transform transition-all duration-300 animate-[fadeIn_0.3s_ease-out]"
+        text-white shadow-2xl border border-white/10 ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-2 border-b border-white/10">
@@ -69,73 +68,10 @@ function CompanyFinance() {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState({ open: false, type: "add" });
   const [selected, setSelected] = useState(null);
-
-  const [invoices, setInvoices] = useState([
-    {
-      id: 1,
-      invoiceNo: "INV-1001",
-      client: "TechNova Ltd.",
-      clientEmail: "billing@technova.com",
-      clientAddress: "Plot 45, Cyber Park, Bengaluru",
-      projectName: "AI Analytics Platform",
-      issueDate: "2024-09-10",
-      dueDate: "2024-09-25",
-      amount: 250000,
-      paidAmount: 250000,
-      paymentTerms: "Net 15 days",
-      notes: "Milestone 1 payment completed.",
-      status: "Paid",
-      description: "AI Analytics project milestone 1 payment",
-    },
-    {
-      id: 2,
-      invoiceNo: "INV-1002",
-      client: "UrbanConnect Pvt. Ltd.",
-      clientEmail: "accounts@urbanconnect.in",
-      clientAddress: "25, IT Park Road, Pune, Maharashtra",
-      projectName: "IoT Smart Lighting System",
-      issueDate: "2024-10-05",
-      dueDate: "2024-10-20",
-      amount: 480000,
-      paidAmount: 200000,
-      paymentTerms: "Net 30 days",
-      notes: "Initial hardware setup completed.",
-      status: "Partial",
-      description: "IoT hardware installation for Smart City project",
-    },
-    {
-      id: 3,
-      invoiceNo: "INV-1003",
-      client: "FinSecure Bank",
-      clientEmail: "finance@finsecurebank.com",
-      clientAddress: "Bank Tower, Connaught Place, New Delhi",
-      projectName: "Blockchain Integration",
-      issueDate: "2024-08-01",
-      dueDate: "2024-08-15",
-      amount: 400000,
-      paidAmount: 0,
-      paymentTerms: "Net 14 days",
-      notes: "Awaiting first milestone payment.",
-      status: "Overdue",
-      description: "Blockchain integration for secure ledger system",
-    },
-    {
-      id: 4,
-      invoiceNo: "INV-1004",
-      client: "HealthAxis Technologies",
-      clientEmail: "finance@healthaxis.io",
-      clientAddress: "Plot 9, Health Valley, Hyderabad",
-      projectName: "Cloud Health Data Migration",
-      issueDate: "2024-09-20",
-      dueDate: "2024-10-10",
-      amount: 320000,
-      paidAmount: 320000,
-      paymentTerms: "Immediate on delivery",
-      notes: "Final milestone approved.",
-      status: "Paid",
-      description: "Migration of hospital data to AWS secure cloud",
-    },
-  ]);
+  const [invoices, setInvoices] = useState([]);
+  const [form, setForm] = useState({});
+  const [errors, setErrors] = useState({});
+  const [company, setCompany] = useState(null);
 
   const emptyForm = useMemo(
     () => ({
@@ -156,41 +92,44 @@ function CompanyFinance() {
     []
   );
 
-  const [form, setForm] = useState(emptyForm);
-  const [errors, setErrors] = useState({});
-
-  // ✅ Generate a unique random invoice number
-  // ✅ Generate a unique invoice number like INV-13102025-4721
+  // ✅ Auto-generate invoice number
   const generateUniqueInvoiceNo = () => {
-    let uniqueNo;
-    do {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, "0");
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const year = now.getFullYear();
-      const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit random
-      uniqueNo = `INV-${day}${month}${year}-${randomNum}`;
-    } while (invoices.some((inv) => inv.invoiceNo === uniqueNo));
-    return uniqueNo;
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    return `INV-${day}${month}${year}-${randomNum}`;
   };
 
+  /* ------------------------------------------------------------------
+     🟩 FETCH COMPANY AND INVOICES FROM BACKEND
+  ------------------------------------------------------------------ */
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const res = await api.get("/api/company/data/check"); // ✅ route that gives logged-in company
+        setCompany(res.data.company);
+        if (res.data.company?._id) fetchInvoices(res.data.company._id);
+      } catch (err) {
+        console.error("❌ Company fetch failed:", err);
+      }
+    };
+    fetchCompanyData();
+  }, []);
 
-  const openModal = (type, invoice = null) => {
-    setErrors({});
-    setSelected(invoice);
-    if (type === "edit" && invoice) {
-      setForm(invoice);
-    } else {
-      setForm({
-        ...emptyForm,
-        invoiceNo: generateUniqueInvoiceNo(), // auto-generated
-      });
+  const fetchInvoices = async (companyRef) => {
+    try {
+      const res = await api.get(`/api/company/data/billing/list/${companyRef}`);
+      if (res.data.success) setInvoices(res.data.invoices || []);
+    } catch (err) {
+      console.error("❌ Fetch invoices error:", err);
     }
-    setModal({ open: true, type });
   };
 
-  const closeModal = () => setModal({ open: false, type: "add" });
-
+  /* ------------------------------------------------------------------
+     🟩 SAVE / UPDATE / DELETE FUNCTIONS
+  ------------------------------------------------------------------ */
   const validate = () => {
     const e = {};
     if (!form.client) e.client = "Client name required";
@@ -201,147 +140,214 @@ function CompanyFinance() {
     return Object.keys(e).length === 0;
   };
 
-  const saveInvoice = () => {
-    if (!validate()) return;
-    if (modal.type === "add") {
-      setInvoices([{ id: Date.now(), ...form }, ...invoices]);
-    } else if (modal.type === "edit" && selected) {
-      setInvoices(
-        invoices.map((i) => (i.id === selected.id ? { ...form, id: i.id } : i))
-      );
+  const saveInvoice = async () => {
+    if (!validate() || !company?._id) return;
+    try {
+      if (modal.type === "add") {
+        const res = await api.post("/api/company/data/billing/add", {
+          ...form,
+          companyRef: company._id,
+        });
+        if (res.data.success) {
+          setInvoices([res.data.invoice, ...invoices]);
+        }
+      } else if (modal.type === "edit" && selected?._id) {
+        const res = await api.put(
+          `/api/company/data/billing/${company._id}/${selected._id}`,
+          form
+        );
+        if (res.data.success) {
+          setInvoices(
+            invoices.map((i) =>
+              i._id === selected._id ? res.data.invoice : i
+            )
+          );
+        }
+      }
+      closeModal();
+    } catch (err) {
+      console.error("❌ Save invoice error:", err);
     }
-    closeModal();
   };
 
-  const deleteInvoice = () => {
-    setInvoices(invoices.filter((i) => i.id !== selected.id));
-    closeModal();
+  const deleteInvoice = async () => {
+    try {
+      await api.delete(
+        `/api/company/data/billing/${company._id}/${selected._id}`
+      );
+      setInvoices(invoices.filter((i) => i._id !== selected._id));
+      closeModal();
+    } catch (err) {
+      console.error("❌ Delete invoice error:", err);
+    }
   };
 
-  /* ---------- PDF GENERATOR ---------- */
-  const generatePDF = (invoice) => {
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const color = [13, 19, 33];
+  const openModal = (type, invoice = null) => {
+    setErrors({});
+    setSelected(invoice);
+    if (type === "edit" && invoice) {
+      setForm(invoice);
+    } else {
+      setForm({
+        ...emptyForm,
+        invoiceNo: generateUniqueInvoiceNo(),
+      });
+    }
+    setModal({ open: true, type });
+  };
 
-    const companyName = "NexoraSpace Pvt. Ltd.";
-    const companyAddress = "B-45, Sector 62, Noida,  Uttar Pradesh, India";
-    const companyEmail = "support@nexoraspace.com";
-    const companyPhone = "+91 98765 43210";
+  const closeModal = () => setModal({ open: false, type: "add" });
 
-    doc.setFillColor(...color);
-    doc.rect(0, 0, pageWidth, 90, "F");
-    doc.addImage(logo, "PNG", 40, 25, 150, 60);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(26);
-    doc.text("TAX INVOICE", pageWidth - 200, 50);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Email: ${companyEmail}`, pageWidth - 200, 70);
-    doc.text(`Phone: ${companyPhone}`, pageWidth - 200, 82);
+  /* ------------------------------------------------------------------
+     🧾 PDF GENERATION (unchanged)
+  ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------
+     🧾 PDF GENERATION (Complete version with company details)
+  ------------------------------------------------------------------ */
+  const generatePDF = async (invoice) => {
+    try {
+      // ✅ Extract userId & companyId from URL
+      const pathParts = window.location.pathname.split("/");
+      const userId = pathParts[pathParts.length - 2];
+      const companyId = pathParts[pathParts.length - 1];
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Bill To:", 40, 130);
-    doc.setFont("helvetica", "normal");
-    doc.text(invoice.client || "—", 40, 145);
-    doc.text(invoice.clientEmail || "—", 40, 160);
-    doc.text(invoice.clientAddress || "—", 40, 175);
+      // ✅ Fetch full company details
+      const companyRes = await api.get(`/api/company/data/user/${userId}/${companyId}`);
+      const company = companyRes.data?.company || {};
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Invoice Details:", pageWidth - 240, 130);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Invoice No: ${invoice.invoiceNo}`, pageWidth - 240, 145);
-    doc.text(`Issue Date: ${invoice.issueDate}`, pageWidth - 240, 160);
-    doc.text(`Due Date: ${invoice.dueDate}`, pageWidth - 240, 175);
-    doc.text(`Status: ${invoice.status}`, pageWidth - 240, 190);
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const color = [13, 19, 33];
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Project:", 40, 210);
-    doc.setFont("helvetica", "normal");
-    doc.text(invoice.projectName || "—", 110, 210);
+      // Company info
+      const companyName = company.companyName || "NexoraSpace Pvt. Ltd.";
+      const companyAddress =
+        company.registeredAddress
+          ? `${company.registeredAddress}, ${company.city || ""}, ${company.state || ""}, ${company.country || ""} - ${company.pincode || ""}`
+          : "B-45, Sector 62, Noida, Uttar Pradesh, India";
+      const companyEmail = company.email || "support@nexoraspace.com";
+      const companyPhone = company.phone || "+91 98765 43210";
+      const bankName = company.bankName || "HDFC Bank Ltd.";
+      const branch = company.branch || "Sector 62, Noida";
+      const accountNumber = company.accountNumber || "123456789012";
+      const ifscCode = company.ifscCode || "HDFC0001234";
+      const gstNumber = company.gstNumber || "";
+      const panNumber = company.panNumber || "";
+      const cinNumber = company.cinNumber || "";
+      const Logo = company.logoUrl || "";
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Description:", 40, 230);
-    doc.setFont("helvetica", "normal");
-    doc.text(invoice.description || "—", 130, 230, { maxWidth: pageWidth - 160 });
+      /* ---------- Header Section ---------- */
+      doc.setFillColor(...color);
+      doc.rect(0, 0, pageWidth, 90, "F");
+      doc.addImage(Logo, "PNG", 40, 25, 150, 60);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text(companyName, 210, 45);
+      doc.setFontSize(10);
+      if (gstNumber) doc.text(`GST: ${gstNumber}`, 210, 60);
+      if (panNumber) doc.text(`PAN: ${panNumber}`, 210, 72);
+      if (cinNumber) doc.text(`CIN: ${cinNumber}`, 210, 84);
+      doc.text(`Email: ${companyEmail}`, pageWidth - 220, 60);
+      doc.text(`Phone: ${companyPhone}`, pageWidth - 220, 74);
 
-    autoTable(doc, {
-      startY: 250,
-      head: [["Particulars", "Total INR", "Paid INR", "Balance INR"]],
-      body: [
-        [
-          invoice.notes || "—",
-          invoice.amount?.toLocaleString() || "0",
-          invoice.paidAmount?.toLocaleString() || "0",
-          ((invoice.amount || 0) - (invoice.paidAmount || 0)).toLocaleString(),
+      /* ---------- Title ---------- */
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.text("TAX INVOICE", pageWidth / 2, 120, { align: "center" });
+
+      /* ---------- Client Info ---------- */
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(12);
+      doc.text("Bill To:", 40, 150);
+      doc.setFont("helvetica", "normal");
+      doc.text(invoice.client || "—", 40, 165);
+      doc.text(invoice.clientEmail || "—", 40, 180);
+      doc.text(invoice.clientAddress || "—", 40, 195);
+
+      /* ---------- Invoice Info ---------- */
+      doc.setFont("helvetica", "bold");
+      doc.text("Invoice Details:", pageWidth - 240, 150);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Invoice No: ${invoice.invoiceNo}`, pageWidth - 240, 165);
+      doc.text(`Issue Date: ${invoice.issueDate}`, pageWidth - 240, 180);
+      doc.text(`Due Date: ${invoice.dueDate}`, pageWidth - 240, 195);
+      doc.text(`Status: ${invoice.status}`, pageWidth - 240, 210);
+
+      /* ---------- Table ---------- */
+      autoTable(doc, {
+        startY: 230,
+        head: [["Description", "Total (INR)", "Paid (INR)", "Balance (INR)"]],
+        body: [
+          [
+            invoice.projectName || invoice.notes || "—",
+            `${invoice.amount?.toLocaleString() || "0"}`,
+            `${invoice.paidAmount?.toLocaleString() || "0"}`,
+            `${((invoice.amount || 0) - (invoice.paidAmount || 0)).toLocaleString()}`,
+          ],
         ],
-      ],
-      styles: { fontSize: 11, halign: "center" },
-      headStyles: { fillColor: color, textColor: [255, 255, 255] },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-    });
+        styles: { fontSize: 11, halign: "center" },
+        headStyles: { fillColor: color, textColor: [255, 255, 255] },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+      });
 
-    const finalY = doc.lastAutoTable.finalY + 30;
-    const balance = (invoice.amount || 0) - (invoice.paidAmount || 0);
+      const finalY = doc.lastAutoTable.finalY + 30;
 
-    const boxWidth = 230;
-    const boxX = pageWidth - boxWidth - 50;
-    const boxY = finalY;
-    doc.setDrawColor(...color);
-    doc.roundedRect(boxX, boxY, boxWidth, 100, 5, 5);
-    doc.setFont("helvetica", "bold");
-    doc.text("Payment Summary", boxX + 20, boxY + 20);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Subtotal: INR ${invoice.amount.toLocaleString()}`, boxX + 20, boxY + 40);
-    doc.text(`Paid: INR ${invoice.paidAmount.toLocaleString()}`, boxX + 20, boxY + 60);
-    doc.text(`Balance Due: INR ${balance.toLocaleString()}`, boxX + 20, boxY + 80);
+      /* ---------- Payment Summary ---------- */
+      const balance = (invoice.amount || 0) - (invoice.paidAmount || 0);
+      doc.setFont("helvetica", "bold");
+      doc.text("Payment Summary", 40, finalY);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Subtotal: INR ${invoice.amount.toLocaleString()}`, 40, finalY + 20);
+      doc.text(`Paid: INR ${invoice.paidAmount.toLocaleString()}`, 40, finalY + 40);
+      doc.text(`Balance Due: INR ${balance.toLocaleString()}`, 40, finalY + 60);
+
+      /* ---------- Bank Details ---------- */
+      const bankY = finalY + 100;
+      doc.setFont("helvetica", "bold");
+      doc.text("Bank Details", 40, bankY);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Bank: ${bankName}`, 40, bankY + 20);
+      doc.text(`Branch: ${branch}`, 40, bankY + 35);
+      doc.text(`A/C: ${accountNumber}`, 40, bankY + 50);
+      doc.text(`IFSC: ${ifscCode}`, 40, bankY + 65);
+
+      /* ---------- Digital Signature ---------- */
+      const sigY = pageHeight - 120;
+      doc.setFont("helvetica", "bold");
+      doc.text("Digitally Signed & Verified", 40, sigY);
+      doc.setFont("courier", "normal");
+      doc.setFontSize(10);
+      doc.text(`Signature ID: ${invoice._id || "N/A"}`, 40, sigY + 15);
+      doc.text(`Timestamp: ${new Date().toLocaleString("en-IN")}`, 40, sigY + 30);
+      doc.setFont("helvetica", "italic");
+      doc.text("Thank you for your business!", pageWidth - 200, sigY + 30);
 
 
-    // ✅ Added Banking Details
-    const bankY = boxY + 120;
-    doc.setFont("helvetica", "bold");
-    doc.text("Banking Details", 40, bankY);
-    doc.setFont("helvetica", "normal");
-    doc.text("Bank Name: HDFC Bank Ltd.", 40, bankY + 20);
-    doc.text("Branch: Sector 62, Noida", 40, bankY + 35);
-    doc.text("Account Number: 123456789012", 40, bankY + 50);
-    doc.text("IFSC Code: HDFC0001234", 40, bankY + 65);
-
-
-    const sigId = `SIG-${Math.floor(Math.random() * 1000000)}`;
-    const sigDate = new Date().toLocaleString("en-IN", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-    doc.setDrawColor(200);
-    doc.line(40, pageHeight - 120, pageWidth - 40, pageHeight - 120);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("Digitally Signed & Verified", 40, pageHeight - 100);
-    doc.setFont("courier", "normal");
-    doc.setFontSize(10);
-    doc.text(`Signer: ${companyName}`, 40, pageHeight - 85);
-    doc.text(`Signature ID: ${sigId}`, 40, pageHeight - 70);
-    doc.text(`Timestamp: ${sigDate}`, 40, pageHeight - 55);
-    doc.setFont("helvetica", "italic");
-    doc.text("Thank you for your business!", pageWidth - 200, pageHeight - 55);
-
-    doc.save(`${invoice.invoiceNo}.pdf`);
+      doc.save(`${invoice.invoiceNo}.pdf`);
+    } catch (err) {
+      console.error("❌ PDF Error:", err);
+      alert("Failed to generate invoice PDF");
+    }
   };
 
-  /* ---------- Financial Summary ---------- */
+
+  /* ---------- SUMMARY ---------- */
   const totalRevenue = invoices.reduce((sum, i) => sum + (i.paidAmount || 0), 0);
   const totalOutstanding = invoices.reduce(
     (sum, i) => sum + (i.amount - i.paidAmount),
     0
   );
   const totalOverdue = invoices
-    .filter((i) => i.status === "Overdue")
+    .filter((i) => {
+      const due = new Date(i.dueDate);
+      const today = new Date();
+      const isOverdue = today > due && (i.amount - i.paidAmount) > 0;
+      return isOverdue;
+    })
     .reduce((sum, i) => sum + (i.amount - i.paidAmount), 0);
+
   const pendingInvoices = invoices.filter(
     (i) => i.status === "Pending" || i.status === "Partial"
   ).length;
@@ -357,7 +363,6 @@ function CompanyFinance() {
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
       <SideMenu />
       <div className="flex-1 p-6 md:p-10 overflow-auto space-y-6">
-        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-800 flex items-center">
             <FileText className="mr-2 text-blue-600" /> Company Finance & Billing
@@ -379,15 +384,39 @@ function CompanyFinance() {
           </div>
         </div>
 
-        {/* SUMMARY */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <SummaryCard title="Total Revenue" value={totalRevenue} icon={<Wallet />} color="green" />
-          <SummaryCard title="Outstanding Balance" value={totalOutstanding} icon={<BarChart3 />} color="yellow" />
-          <SummaryCard title="Overdue Amount" value={totalOverdue} icon={<ArrowDownCircle />} color="red" />
-          <SummaryCard title="Pending Invoices" value={pendingInvoices} icon={<TrendingUp />} color="blue" />
+          <SummaryCard
+            title="Total Revenue"
+            value={`₹${totalRevenue.toLocaleString()} (${invoices.filter(i => i.paidAmount > 0).length} invoices)`}
+            icon={<Wallet />}
+            color="green"
+          />
+          <SummaryCard
+            title="Outstanding Balance"
+            value={`₹${totalOutstanding.toLocaleString()} (${invoices.filter(i => (i.amount - i.paidAmount) > 0).length} invoices)`}
+            icon={<BarChart3 />}
+            color="yellow"
+          />
+          <SummaryCard
+            title="Overdue Amount"
+            value={`₹${totalOverdue.toLocaleString()} (${invoices.filter(i => {
+              const due = new Date(i.dueDate);
+              const today = new Date();
+              return today > due && (i.amount - i.paidAmount) > 0;
+            }).length} invoices)`}
+            icon={<ArrowDownCircle />}
+            color="red"
+          />
+
+          <SummaryCard
+            title="Pending Invoices"
+            value={`${pendingInvoices} Pending`}
+            icon={<TrendingUp />}
+            color="blue"
+          />
         </div>
 
-        {/* TABLE */}
+
         <div className="bg-white rounded-2xl shadow overflow-x-auto">
           <table className="w-full text-sm md:text-base">
             <thead className="bg-gray-200 text-gray-700">
@@ -395,21 +424,34 @@ function CompanyFinance() {
                 <th className="p-3 text-left">Invoice No</th>
                 <th className="p-3 text-left">Client</th>
                 <th className="p-3 text-left">Project</th>
+                <th className="p-3 text-left">Issue Date</th>
+                <th className="p-3 text-left">Due Date</th>
                 <th className="p-3 text-left">Amount</th>
                 <th className="p-3 text-left">Paid</th>
                 <th className="p-3 text-left">Status</th>
                 <th className="p-3 text-center">Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {filtered.map((i) => (
-                <tr key={i.id} className="border-b hover:bg-gray-50 transition">
+                <tr key={i._id} className="border-b hover:bg-gray-50 transition">
                   <td className="p-3">{i.invoiceNo}</td>
                   <td className="p-3">{i.client}</td>
                   <td className="p-3">{i.projectName || "—"}</td>
+                  <td className="p-3">{i.issueDate ? new Date(i.issueDate).toLocaleDateString("en-IN") : "—"}</td>
+                  <td className="p-3">{i.dueDate ? new Date(i.dueDate).toLocaleDateString("en-IN") : "—"}</td>
                   <td className="p-3">₹{i.amount.toLocaleString()}</td>
                   <td className="p-3">₹{i.paidAmount.toLocaleString()}</td>
-                  <td className="p-3">{i.status}</td>
+                  <td className={`p-3 font-medium ${i.status === "Paid"
+                      ? "text-green-600"
+                      : i.status === "Overdue"
+                        ? "text-red-600"
+                        : "text-yellow-600"
+                    }`}>
+                    {i.status}
+                  </td>
+
                   <td className="p-3 flex justify-center gap-3">
                     <button onClick={() => openModal("view", i)} className="text-blue-600"><Eye /></button>
                     <button onClick={() => openModal("edit", i)} className="text-green-600"><Edit /></button>
@@ -422,7 +464,6 @@ function CompanyFinance() {
           </table>
         </div>
 
-        {/* MODALS */}
         {modal.open && (
           <InvoiceModals
             modal={modal}
@@ -441,7 +482,7 @@ function CompanyFinance() {
   );
 }
 
-/* ---------- HELPER COMPONENTS ---------- */
+/* ---------- SummaryCard ---------- */
 const SummaryCard = ({ title, value, icon, color }) => (
   <div className="bg-white rounded-2xl shadow p-5 flex items-center justify-between">
     <div>

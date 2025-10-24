@@ -129,9 +129,8 @@ function SideMenu() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 left-0 w-64 bg-gradient-to-b from-[#0d1321] via-[#1b263b] to-[#1b263b] text-white transform transition-transform duration-300 z-50 flex flex-col justify-between shadow-2xl min-h-screen ${
-          open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
+        className={`fixed md:sticky top-0 left-0 w-64 bg-gradient-to-b from-[#0d1321] via-[#1b263b] to-[#1b263b] text-white transform transition-transform duration-300 z-50 flex flex-col justify-between shadow-2xl min-h-screen ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          }`}
       >
         {/* Top Section */}
         <div className="flex flex-col items-center mt-6 overflow-y-auto flex-grow">
@@ -161,9 +160,8 @@ function SideMenu() {
                       <User className="text-[#0d1321]" size={18} />
                     </div>
                     <div
-                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${
-                        user.isActive ? "bg-green-400" : "bg-gray-400"
-                      } border-2 border-[#1b263b] rounded-full`}
+                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${user.isActive ? "bg-green-400" : "bg-gray-400"
+                        } border-2 border-[#1b263b] rounded-full`}
                     ></div>
                   </div>
                   <div className="text-left leading-tight">
@@ -190,11 +188,10 @@ function SideMenu() {
             {menuItems.map((item, index) => (
               <li
                 key={index}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-300 group relative overflow-hidden ${
-                  location.pathname === item.path
+                className={`flex items-center space-x-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-300 group relative overflow-hidden ${location.pathname === item.path
                     ? "bg-[#1d3557] text-white shadow-md"
                     : "hover:bg-[#1e2a3a] text-gray-300 hover:text-white"
-                }`}
+                  }`}
               >
                 {item.path ? (
                   <Link
@@ -237,6 +234,102 @@ function SideMenu() {
           </button>
         </div>
       </aside>
+
+      {/* Notifications Popup */}
+      {showNotifications && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#0d1321] text-white rounded-2xl shadow-2xl w-96 p-6 relative border border-[#1b263b] animate-fadeIn">
+            <button
+              onClick={handleClosePopup}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-semibold mb-4">Notifications</h2>
+            <ul className="space-y-3 text-gray-200">
+              <li className="bg-[#1b263b] p-3 rounded-lg border border-gray-700">
+                New project assigned to Team A
+              </li>
+              <li className="bg-[#1b263b] p-3 rounded-lg border border-gray-700">
+                Monthly report is ready for review
+              </li>
+              <li className="bg-[#1b263b] p-3 rounded-lg border border-gray-700">
+                System maintenance scheduled for tomorrow
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Support Popup */}
+      {showSupportForm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#0d1321] text-white rounded-2xl shadow-2xl w-96 p-6 relative border border-[#1b263b] animate-fadeIn">
+            <button
+              onClick={handleClosePopup}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-semibold mb-4">Contact Support</h2>
+            <form className="space-y-4">
+              <div>
+                <label className="block text-gray-300 font-medium mb-1">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-[#1b263b] border border-gray-700 rounded-lg p-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#6fb1fc] outline-none"
+                  placeholder="Enter your name"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 font-medium mb-1">
+                  Your Email
+                </label>
+                <input
+                  type="email"
+                  className="w-full bg-[#1b263b] border border-gray-700 rounded-lg p-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#6fb1fc] outline-none"
+                  placeholder="Enter your email"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 font-medium mb-1">
+                  Issue / Message
+                </label>
+                <textarea
+                  className="w-full bg-[#1b263b] border border-gray-700 rounded-lg p-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#6fb1fc] outline-none"
+                  rows="3"
+                  placeholder="Describe your issue..."
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-[#6fb1fc] text-[#0d1321] py-2 rounded-lg font-semibold hover:bg-[#8ecdfc] transition-all"
+              >
+                Send Message
+              </button>
+            </form>
+            <p className="text-sm text-center text-gray-400 mt-4">
+              Or email us directly at{" "}
+              <a
+                href="mailto:contact@vishalsharmadev.in"
+                className="text-[#6fb1fc] font-medium"
+              >
+                contact@vishalsharmadev.in
+              </a>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay for Mobile */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm md:hidden z-40"
+          onClick={() => setOpen(false)}
+        ></div>
+      )}
     </>
   );
 }

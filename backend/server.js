@@ -9,6 +9,7 @@ const SystemRoutes = require("./routes/SystemRoutes");
 const systemAuthRoutes = require("./routes/systemAuthRoutes")
 const companyRoutes = require("./routes/companyRoutes")
 const companyEmployeeRoutes = require("./routes/companyEmployeeRoutes");
+const companyBillingRoutes = require("./routes/companyBillingRoutes");
 
 const app = express();
 
@@ -33,6 +34,7 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/company/data", companyRoutes);
 app.use("/api/company/data/employee", companyEmployeeRoutes);
+app.use("/api/company/data/billing", companyBillingRoutes);
 
 
 //system admin ka all routes
