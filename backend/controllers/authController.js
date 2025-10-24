@@ -97,13 +97,18 @@ exports.login = async (req, res) => {
   }
 };
 
+// controllers/authController.js
 exports.logout = async (req, res) => {
   try {
     res.clearCookie("companytoken", {
-      path: "/",
-      sameSite: "None",
+      path: "/", // ✅ match login cookie path
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
       secure: process.env.NODE_ENV === "production",
     });
+
+    console.log("✅ Companytoken cookie cleared successfully");
+
     return res
       .status(200)
       .json({ success: true, message: "Logged out successfully." });

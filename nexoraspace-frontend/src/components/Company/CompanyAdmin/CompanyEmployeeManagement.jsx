@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Plus,
   Edit,
@@ -15,6 +15,8 @@ import {
   User,
   Folder,
 } from "lucide-react";
+import { useParams } from "react-router-dom";
+import api from "../../../api/axios";
 import SideMenu from "./SideMenu";
 
 /* ---------- Fancy Modal Component ---------- */
@@ -22,11 +24,7 @@ function Modal({ open, title, onClose, children, footer }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/40">
-      <div
-        onClick={onClose}
-        className="absolute inset-0"
-        aria-hidden="true"
-      />
+      <div onClick={onClose} className="absolute inset-0" aria-hidden="true" />
       <div
         className="relative w-full max-w-2xl rounded-2xl bg-gradient-to-br from-[#0d1321] to-[#141b2f]
         text-white shadow-2xl border border-white/10 ring-1 ring-white/10
@@ -67,10 +65,12 @@ const Field = ({ label, required, children, error }) => (
 );
 
 /* ---------- Document Manager ---------- */
-function DocumentManager({ docs, setDocs }) {
+function DocumentManager({ docs, setDocs, companyid, selected }) {
   const addRow = () =>
     setDocs([...docs, { id: crypto.randomUUID(), name: "", file: null }]);
+
   const removeRow = (id) => setDocs(docs.filter((d) => d.id !== id));
+
   const updateRow = (id, patch) =>
     setDocs(docs.map((d) => (d.id === id ? { ...d, ...patch } : d)));
 
@@ -94,36 +94,81 @@ function DocumentManager({ docs, setDocs }) {
       )}
 
       <div className="space-y-2">
-        {docs.map((d, idx) => (
+        {docs.map((d) => (
           <div
-            key={d.id}
+            key={d._id || d.id}
             className="grid grid-cols-1 md:grid-cols-12 gap-2 rounded-xl border border-white/10 p-3 bg-white/5"
           >
-            <div className="md:col-span-5">
-              <input
-                type="text"
-                placeholder="Document name"
-                value={d.name}
-                onChange={(e) => updateRow(d.id, { name: e.target.value })}
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm placeholder-white/40 outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="md:col-span-6">
-              <input
-                type="file"
-                onChange={(e) => updateRow(d.id, { file: e.target.files?.[0] })}
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-white/30"
-              />
-            </div>
-            <div className="md:col-span-1 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => removeRow(d.id)}
-                className="rounded-lg p-2 text-red-300 hover:bg-red-500/10 active:scale-95 transition"
-              >
-                <Trash className="h-4 w-4" />
-              </button>
-            </div>
+            {/* Existing document with URL */}
+            {d.fileUrl ? (
+              <>
+                <div className="md:col-span-8 flex items-center gap-2">
+                  <a
+                    href={d.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline truncate"
+                  >
+                    📄 {d.name || "Document"}
+                  </a>
+                </div>
+                <div className="md:col-span-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (d._id) {
+                        // Existing doc in DB → call backend
+                        try {
+                          await api.delete(
+                            `/api/company/data/employee/${companyid}/${selected._id}/document/${d._id}`,
+                            { withCredentials: true }
+                          );
+                          setDocs(docs.filter((doc) => doc._id !== d._id));
+                        } catch (err) {
+                          console.error("❌ Delete doc error:", err.response?.data || err.message);
+                          alert("Failed to delete document");
+                        }
+                      } else {
+                        // New doc not yet uploaded
+                        removeRow(d.id);
+                      }
+                    }}
+                    className="rounded-lg p-2 text-red-400 hover:bg-red-500/10 transition"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </button>
+
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="md:col-span-5">
+                  <input
+                    type="text"
+                    placeholder="Document name"
+                    value={d.name}
+                    onChange={(e) => updateRow(d.id, { name: e.target.value })}
+                    className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm placeholder-white/40 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="md:col-span-6">
+                  <input
+                    type="file"
+                    onChange={(e) => updateRow(d.id, { file: e.target.files?.[0] })}
+                    className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-white/30"
+                  />
+                </div>
+                <div className="md:col-span-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => removeRow(d.id)}
+                    className="rounded-lg p-2 text-red-400 hover:bg-red-500/10 transition"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>
@@ -131,8 +176,16 @@ function DocumentManager({ docs, setDocs }) {
   );
 }
 
+
 /* ---------- Main Component ---------- */
 function CompanyEmployeeManagement() {
+  const { companyid } = useParams();
+  const [employees, setEmployees] = useState([]);
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState({ open: false, type: "add" });
+  const [selected, setSelected] = useState(null);
+  const [errors, setErrors] = useState({});
+
   const positionOptions = [
     "Software Engineer",
     "Senior Engineer",
@@ -150,33 +203,6 @@ function CompanyEmployeeManagement() {
   ];
   const statusOptions = ["Active", "On Leave", "Inactive"];
 
-  const [employees, setEmployees] = useState([
-    {
-      id: 1,
-      name: "Amit Sharma",
-      email: "amit@company.com",
-      position: "Software Engineer",
-      project: "AI Dashboard",
-      status: "Active",
-      joiningDate: "2022-03-15",
-      documents: [],
-    },
-    {
-      id: 2,
-      name: "Priya Verma",
-      email: "priya@company.com",
-      position: "UI/UX Designer",
-      project: "Mobile App Redesign",
-      status: "On Leave",
-      joiningDate: "2023-01-05",
-      documents: [],
-    },
-  ]);
-
-  const [search, setSearch] = useState("");
-  const [modal, setModal] = useState({ open: false, type: "add" });
-  const [selected, setSelected] = useState(null);
-
   const emptyForm = useMemo(
     () => ({
       name: "",
@@ -190,17 +216,26 @@ function CompanyEmployeeManagement() {
     []
   );
   const [form, setForm] = useState(emptyForm);
-  const [errors, setErrors] = useState({});
 
-  const openModal = (type, emp = null) => {
-    setErrors({});
-    setSelected(emp);
-    if (type === "edit" && emp) setForm({ ...emp, documents: [] });
-    else setForm(emptyForm);
-    setModal({ open: true, type });
-  };
-  const closeModal = () => setModal({ open: false, type: "add" });
+  /* ---------- Fetch Employees ---------- */
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const res = await api.get(`/api/company/data/employee/list/${companyid}`, {
+          withCredentials: true,
+        });
 
+        if (res.data.success) {
+          setEmployees(res.data.employees);
+        }
+      } catch (err) {
+        console.error("❌ Failed to load employees:", err.response?.data || err.message);
+      }
+    };
+    fetchEmployees();
+  }, [companyid]);
+
+  /* ---------- Validation ---------- */
   const validate = () => {
     const e = {};
     if (!form.name) e.name = "Required";
@@ -210,22 +245,101 @@ function CompanyEmployeeManagement() {
     return Object.keys(e).length === 0;
   };
 
-  const saveEmployee = () => {
+  /* ---------- Add / Edit ---------- */
+  /* ---------- Add / Edit Employee ---------- */
+  const saveEmployee = async () => {
     if (!validate()) return;
-    if (modal.type === "add") {
-      setEmployees([...employees, { id: Date.now(), ...form }]);
-    } else if (modal.type === "edit" && selected) {
-      setEmployees(
-        employees.map((e) => (e.id === selected.id ? { ...form, id: e.id } : e))
+
+    try {
+      // Create FormData for both add & edit (supports file uploads)
+      const formData = new FormData();
+      formData.append("companyRef", companyid);
+      formData.append("name", form.name);
+      formData.append("email", form.email);
+      formData.append("position", form.position);
+      formData.append("project", form.project);
+      formData.append("status", form.status);
+      formData.append("joiningDate", form.joiningDate);
+
+      // Attach uploaded documents (files)
+      form.documents.forEach((doc) => {
+        if (doc.file) {
+          formData.append("documents", doc.file);
+        }
+      });
+
+      let res;
+
+      if (modal.type === "add") {
+        // 🟢 ADD new employee
+        res = await api.post(`/api/company/data/employee/add`, formData, {
+          withCredentials: true,
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        if (res.data.success) {
+          setEmployees((prev) => [res.data.employee, ...prev]);
+        }
+      } else if (modal.type === "edit" && selected) {
+        // 🟡 EDIT existing employee
+        res = await api.put(
+          `/api/company/data/employee/${companyid}/${selected._id}`,
+          formData,
+          {
+            withCredentials: true,
+            headers: { "Content-Type": "multipart/form-data" },
+          }
+        );
+
+        if (res.data.success) {
+          setEmployees((prev) =>
+            prev.map((e) => (e._id === selected._id ? res.data.employee : e))
+          );
+        }
+      }
+
+      closeModal();
+    } catch (err) {
+      console.error("❌ Save employee error:", err.response?.data || err.message);
+      alert(
+        err.response?.data?.message ||
+        "Failed to save employee. Check console for details."
       );
     }
-    closeModal();
   };
 
-  const deleteEmployee = () => {
-    setEmployees(employees.filter((e) => e.id !== selected.id));
-    closeModal();
+
+
+  /* ---------- Delete ---------- */
+  const deleteEmployee = async () => {
+    try {
+      const res = await api.delete(
+        `/api/company/data/employee/${companyid}/${selected._id}`,
+        { withCredentials: true }
+      );
+
+      if (res.data.success) {
+        setEmployees((prev) => prev.filter((e) => e._id !== selected._id));
+      } else {
+        alert("Failed to delete employee");
+      }
+
+      closeModal();
+    } catch (err) {
+      console.error("❌ Delete error:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Failed to delete employee");
+    }
   };
+
+
+  const openModal = (type, emp = null) => {
+    setErrors({});
+    setSelected(emp);
+    if (type === "edit" && emp) setForm({ ...emp, documents: emp.documents || [] });
+    else setForm(emptyForm);
+    setModal({ open: true, type });
+  };
+  const closeModal = () => setModal({ open: false, type: "add" });
 
   const filtered = employees.filter((e) =>
     [e.name, e.email, e.position, e.project, e.status]
@@ -234,12 +348,12 @@ function CompanyEmployeeManagement() {
       .includes(search.toLowerCase())
   );
 
+  /* ---------- Render ---------- */
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
       <SideMenu />
 
       <div className="flex-1 p-6 pt-19 md:p-10 overflow-auto">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <h1 className="text-2xl font-bold text-gray-800 flex items-center">
             <Users className="mr-2 text-blue-600" /> Employee Management
@@ -278,13 +392,15 @@ function CompanyEmployeeManagement() {
             </thead>
             <tbody>
               {filtered.map((e) => (
-                <tr key={e.id} className="border-b hover:bg-gray-50 transition">
+                <tr key={e._id} className="border-b hover:bg-gray-50 transition">
                   <td className="p-3">{e.name}</td>
                   <td className="p-3">{e.email}</td>
                   <td className="p-3">{e.position}</td>
                   <td className="p-3">{e.project}</td>
                   <td className="p-3">{e.status}</td>
-                  <td className="p-3">{e.joiningDate}</td>
+                  <td className="p-3">
+                    {new Date(e.joiningDate).toLocaleDateString()}
+                  </td>
                   <td className="p-3 flex justify-center gap-3">
                     <button onClick={() => openModal("view", e)} className="text-blue-600">
                       <Eye />
@@ -302,17 +418,15 @@ function CompanyEmployeeManagement() {
           </table>
         </div>
 
-        {/* ---------- ADD / EDIT MODAL ---------- */}
+        {/* Modals */}
+        {/* Add/Edit Modal */}
         <Modal
           open={modal.open && (modal.type === "add" || modal.type === "edit")}
           title={modal.type === "add" ? "Add Employee" : "Edit Employee"}
           onClose={closeModal}
           footer={
             <div className="flex justify-end gap-3">
-              <button
-                onClick={closeModal}
-                className="rounded-lg border border-white/20 px-4 py-2 hover:bg-white/10"
-              >
+              <button onClick={closeModal} className="rounded-lg border border-white/20 px-4 py-2 hover:bg-white/10">
                 Cancel
               </button>
               <button
@@ -348,12 +462,10 @@ function CompanyEmployeeManagement() {
                 <select
                   value={form.position}
                   onChange={(e) => setForm({ ...form, position: e.target.value })}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-white/20 bg-gray-800 text-white px-3 py-2 focus:ring-2 focus:ring-blue-500"
                 >
                   {positionOptions.map((p) => (
-                    <option key={p} className="bg-[#0d1321]">
-                      {p}
-                    </option>
+                    <option key={p}>{p}</option>
                   ))}
                 </select>
               </Field>
@@ -361,12 +473,10 @@ function CompanyEmployeeManagement() {
                 <select
                   value={form.project}
                   onChange={(e) => setForm({ ...form, project: e.target.value })}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-white/20 bg-gray-800 text-white px-3 py-2 focus:ring-2 focus:ring-blue-500"
                 >
                   {projectOptions.map((p) => (
-                    <option key={p} className="bg-[#0d1321]">
-                      {p}
-                    </option>
+                    <option key={p}>{p}</option>
                   ))}
                 </select>
               </Field>
@@ -374,12 +484,10 @@ function CompanyEmployeeManagement() {
                 <select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-white/20 bg-gray-800 text-white px-3 py-2 focus:ring-2 focus:ring-blue-500"
                 >
                   {statusOptions.map((s) => (
-                    <option key={s} className="bg-[#0d1321]">
-                      {s}
-                    </option>
+                    <option key={s}>{s}</option>
                   ))}
                 </select>
               </Field>
@@ -389,9 +497,7 @@ function CompanyEmployeeManagement() {
               <input
                 type="date"
                 value={form.joiningDate}
-                onChange={(e) =>
-                  setForm({ ...form, joiningDate: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, joiningDate: e.target.value })}
                 className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
               />
             </Field>
@@ -399,11 +505,14 @@ function CompanyEmployeeManagement() {
             <DocumentManager
               docs={form.documents}
               setDocs={(d) => setForm({ ...form, documents: d })}
+              companyid={companyid}
+              selected={selected}
             />
+
           </div>
         </Modal>
 
-        {/* ---------- VIEW MODAL ---------- */}
+        {/* View Modal */}
         <Modal
           open={modal.open && modal.type === "view"}
           title="Employee Profile"
@@ -421,7 +530,6 @@ function CompanyEmployeeManagement() {
         >
           {selected && (
             <div className="space-y-5">
-              {/* Profile Section */}
               <div className="flex items-center gap-4 border-b border-white/10 pb-4">
                 <div className="h-16 w-16 flex items-center justify-center rounded-full bg-blue-600 text-xl font-bold">
                   {selected.name.charAt(0)}
@@ -431,8 +539,6 @@ function CompanyEmployeeManagement() {
                   <p className="text-sm text-white/60">{selected.email}</p>
                 </div>
               </div>
-
-              {/* Details */}
               <div className="grid md:grid-cols-2 gap-3 text-white/90">
                 <p className="flex items-center gap-2">
                   <Briefcase className="h-4 w-4 text-blue-400" />{" "}
@@ -448,45 +554,21 @@ function CompanyEmployeeManagement() {
                 </p>
                 <p className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-purple-400" />{" "}
-                  <span>{selected.joiningDate}</span>
+                  <span>{new Date(selected.joiningDate).toLocaleDateString()}</span>
                 </p>
-              </div>
-
-              {/* Documents */}
-              <div>
-                <h4 className="text-sm text-white/70 mb-2">Documents:</h4>
-                {selected.documents?.length ? (
-                  <ul className="list-disc pl-5 space-y-1">
-                    {selected.documents.map((d) => (
-                      <li key={d.id}>
-                        {d.name || "Unnamed"}{" "}
-                        {d.file ? (
-                          <span className="text-white/60 text-xs">
-                            ({d.file.name})
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-white/50 text-sm">No documents uploaded.</p>
-                )}
               </div>
             </div>
           )}
         </Modal>
 
-        {/* ---------- DELETE MODAL ---------- */}
+        {/* Delete Modal */}
         <Modal
           open={modal.open && modal.type === "delete"}
           title="Delete Employee"
           onClose={closeModal}
           footer={
             <div className="flex justify-end gap-3">
-              <button
-                onClick={closeModal}
-                className="rounded-lg border border-white/20 px-4 py-2 hover:bg-white/10"
-              >
+              <button onClick={closeModal} className="rounded-lg border border-white/20 px-4 py-2 hover:bg-white/10">
                 Cancel
               </button>
               <button
@@ -500,8 +582,7 @@ function CompanyEmployeeManagement() {
         >
           <p className="text-white/85">
             Are you sure you want to delete{" "}
-            <span className="font-semibold">{selected?.name}</span>? This action
-            cannot be undone.
+            <span className="font-semibold">{selected?.name}</span>? This action cannot be undone.
           </p>
         </Modal>
       </div>

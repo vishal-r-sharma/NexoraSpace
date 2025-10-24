@@ -5,8 +5,10 @@ require("dotenv").config();
 const connectDB = require("./config/mongoose_connection");
 
 const authRoutes = require("./routes/authRoutes");
-const companyRoutes = require("./routes/companyRoutes");
+const SystemRoutes = require("./routes/SystemRoutes");
 const systemAuthRoutes = require("./routes/systemAuthRoutes")
+const companyRoutes = require("./routes/companyRoutes")
+const companyEmployeeRoutes = require("./routes/companyEmployeeRoutes");
 
 const app = express();
 
@@ -29,8 +31,13 @@ connectDB();
 
 // ✅ Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/company", companyRoutes);
-app.use("/api/auth/systemadmin", systemAuthRoutes)
+app.use("/api/company/data", companyRoutes);
+app.use("/api/company/data/employee", companyEmployeeRoutes);
+
+
+//system admin ka all routes
+app.use("/api/company", SystemRoutes); // routes of all update delete etc
+app.use("/api/auth/systemadmin", systemAuthRoutes);// system admin login logout routes
 
 app.get("/", (req, res) => res.send("🚀 NexoraSpace Backend Running..."));
 

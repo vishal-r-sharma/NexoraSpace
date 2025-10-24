@@ -23,12 +23,12 @@ const AppRoutes = () => {
       <Route path="/system/add-company" element={<SystemAdminAddCompany />} />
       <Route path="/system/company/:id" element={<SystemAdminCompanyProfile />} />
       <Route path="/company/login" element={<CompanyLogin />} />
-      <Route path="/company/admin/dashboard/:id/:id" element={<CompanyAdminDashboard/>} />
-      <Route path="/company/admin/employee" element={<CompanyEmployeeManagement/>}/>
-      <Route path="/company/admin/projects" element={<CompanyProjects />}/>
-      <Route path="/company/admin/finance" element={<CompanyFinance/>}/>
-      <Route path="/company/admin/setting" element={<CompanySetting />} />
-      <Route path="/company/admin/AI" element={<CompanyAI_General />} />
+      <Route path="/company/:role/dashboard/:userid/:companyid" element={<CompanyAdminDashboard/>} />
+      <Route path="/company/:role/employee/:userid/:companyid" element={<CompanyEmployeeManagement/>}/>
+      <Route path="/company/:role/projects/:userid/:companyid" element={<CompanyProjects />}/>
+      <Route path="/company/:role/finance/:userid/:companyid" element={<CompanyFinance/>}/>
+      <Route path="/company/:role/setting/:userid/:companyid" element={<CompanySetting />} />
+      <Route path="/company/:role/AI/:userid/:companyid" element={<CompanyAI_General />} />
     </Routes>
   );
 };
