@@ -125,7 +125,7 @@ router.get("/:companyRef/:employeeId", companyAuth, async (req, res) => {
 });
 
 /* ------------------------------------------------------
-   ✅ UPDATE EMPLOYEE (Add/Replace Docs)
+   ✅ UPDATE EMPLOYEE (Auto-Rename Folder + Add Docs)
 ------------------------------------------------------ */
 router.put("/:companyRef/:employeeId", companyAuth, upload.array("documents"), async (req, res) => {
   try {
@@ -133,37 +133,60 @@ router.put("/:companyRef/:employeeId", companyAuth, upload.array("documents"), a
     const { name, email, position, project, status, joiningDate } = req.body;
 
     const empDoc = await CompanyEmployee.findOne({ companyRef });
-    if (!empDoc) return res.status(404).json({ success: false, message: "Company not found" });
+    if (!empDoc)
+      return res.status(404).json({ success: false, message: "Company not found" });
+
     const emp = empDoc.employees.id(employeeId);
-    if (!emp) return res.status(404).json({ success: false, message: "Employee not found" });
+    if (!emp)
+      return res.status(404).json({ success: false, message: "Employee not found" });
 
-    Object.assign(emp, { name, email, position, project, status, joiningDate });
-
-    // Folder setup
+    // 🔹 Get old and new folder paths
     const company = await CompanyDetail.findById(companyRef).lean();
     const companyFolder = `${company.companyName.replace(/\s+/g, "_")}_${companyRef}`;
-    const employeeFolder = `${emp.name.replace(/\s+/g, "_")}_${employeeId}`;
-    const uploadDir = path.join(__dirname, `../uploads/${companyFolder}/employees/${employeeFolder}`);
-    await fs.ensureDir(uploadDir);
+    const oldEmployeeFolder = `${emp.name.replace(/\s+/g, "_")}_${employeeId}`;
+    const newEmployeeFolder = `${name.replace(/\s+/g, "_")}_${employeeId}`;
 
-    // Handle new docs
+    const baseDir = path.join(__dirname, `../uploads/${companyFolder}/employees`);
+    const oldPath = path.join(baseDir, oldEmployeeFolder);
+    const newPath = path.join(baseDir, newEmployeeFolder);
+
+    // 🔹 If name changed and old folder exists → rename
+    if (emp.name !== name && await fs.pathExists(oldPath)) {
+      await fs.move(oldPath, newPath, { overwrite: true });
+      console.log(`📁 Employee folder renamed: ${oldEmployeeFolder} → ${newEmployeeFolder}`);
+    } else {
+      // Ensure the correct folder exists
+      await fs.ensureDir(newPath);
+    }
+
+    // 🔹 Update employee data
+    Object.assign(emp, { name, email, position, project, status, joiningDate });
+
+    // 🔹 Handle new document uploads
     if (req.files && req.files.length > 0) {
-      const newDocs = [];
       for (const file of req.files) {
-        const targetPath = path.join(uploadDir, file.filename);
+        const targetPath = path.join(newPath, file.filename);
         await fs.move(file.path, targetPath, { overwrite: true });
-        newDocs.push({ name: file.originalname, fileUrl: targetPath.replace(/\\/g, "/") });
+        emp.documents.push({
+          name: file.originalname,
+          fileUrl: targetPath.replace(/\\/g, "/"),
+        });
       }
-      emp.documents.push(...newDocs);
     }
 
     await empDoc.save();
-    res.json({ success: true, message: "✅ Employee updated successfully", employee: emp });
+
+    res.json({
+      success: true,
+      message: "✅ Employee updated successfully (folder auto-renamed)",
+      employee: emp,
+    });
   } catch (err) {
     console.error("❌ PUT /employee error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 
 
 /* ------------------------------------------------------

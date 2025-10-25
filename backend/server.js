@@ -10,6 +10,9 @@ const systemAuthRoutes = require("./routes/systemAuthRoutes")
 const companyRoutes = require("./routes/companyRoutes")
 const companyEmployeeRoutes = require("./routes/companyEmployeeRoutes");
 const companyBillingRoutes = require("./routes/companyBillingRoutes");
+const companySettingsRoutes = require("./routes/companySettingsRoutes");
+const companyAIChatRoutes = require("./routes/companyAIChatRoutes");
+const companyProjectsRoutes = require("./routes/companyProjectRoutes");
 
 const app = express();
 
@@ -35,6 +38,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/company/data", companyRoutes);
 app.use("/api/company/data/employee", companyEmployeeRoutes);
 app.use("/api/company/data/billing", companyBillingRoutes);
+app.use("/api/company/data/settings", companySettingsRoutes);
+app.use("/api/company/data/aichat", companyAIChatRoutes);
+app.use("/api/company/data/projects", companyProjectsRoutes);
+
 
 
 //system admin ka all routes

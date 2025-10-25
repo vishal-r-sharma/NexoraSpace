@@ -13,10 +13,10 @@ import {
   TrendingUp,
   ArrowDownCircle,
 } from "lucide-react";
-import SideMenu from "./SideMenu";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import api from "../../../api/axios"; // ✅ axios instance (withCredentials: true)
+import defaultlogo from "../../../assets/logo-white.png"
 
 /* ---------- Fancy Modal ---------- */
 function Modal({ open, title, onClose, children, footer }) {
@@ -198,9 +198,25 @@ function CompanyFinance() {
 
   const closeModal = () => setModal({ open: false, type: "add" });
 
-  /* ------------------------------------------------------------------
-     🧾 PDF GENERATION (unchanged)
-  ------------------------------------------------------------------ */
+  // ✅ Convert image file (local import or remote URL) to Base64
+  const loadImageAsBase64 = async (url) => {
+    try {
+      // Try remote image first
+      const response = await fetch(url, { mode: "cors" });
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.warn("⚠️ Could not fetch image due to CORS:", url);
+      return null;
+    }
+  };
+
+
   /* ------------------------------------------------------------------
      🧾 PDF GENERATION (Complete version with company details)
   ------------------------------------------------------------------ */
@@ -235,16 +251,48 @@ function CompanyFinance() {
       const gstNumber = company.gstNumber || "";
       const panNumber = company.panNumber || "";
       const cinNumber = company.cinNumber || "";
-      const Logo = company.logoUrl || "";
 
+      /* ---------- Header Section ---------- */
       /* ---------- Header Section ---------- */
       doc.setFillColor(...color);
       doc.rect(0, 0, pageWidth, 90, "F");
-      doc.addImage(Logo, "PNG", 40, 25, 150, 60);
+
+      let logoBase64 = null;
+
+      // ✅ Try remote company logo (convert to Base64)
+      if (company.logoUrl && company.logoUrl.startsWith("http")) {
+        logoBase64 = await loadImageAsBase64(company.logoUrl);
+      }
+
+      // ✅ If remote logo fails, fallback to local default (convert it properly)
+      if (!logoBase64) {
+        const imgResponse = await fetch(defaultlogo);
+        const blob = await imgResponse.blob();
+        const reader = new FileReader();
+        logoBase64 = await new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      // ✅ Now add it to PDF safely
+      try {
+        if (logoBase64) {
+          doc.addImage(logoBase64, "PNG", 40, 25, 150, 60);
+        } else {
+          console.warn("⚠️ No logo added (Base64 unavailable)");
+        }
+      } catch (err) {
+        console.warn("⚠️ Logo not added — invalid format", err);
+      }
+
+
+
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(24);
+      doc.setFontSize(18);
       doc.text(companyName, 210, 45);
+
       doc.setFontSize(10);
       if (gstNumber) doc.text(`GST: ${gstNumber}`, 210, 60);
       if (panNumber) doc.text(`PAN: ${panNumber}`, 210, 72);
@@ -361,7 +409,6 @@ function CompanyFinance() {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
-      <SideMenu />
       <div className="flex-1 p-6 md:p-10 overflow-auto space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-800 flex items-center">
@@ -444,10 +491,10 @@ function CompanyFinance() {
                   <td className="p-3">₹{i.amount.toLocaleString()}</td>
                   <td className="p-3">₹{i.paidAmount.toLocaleString()}</td>
                   <td className={`p-3 font-medium ${i.status === "Paid"
-                      ? "text-green-600"
-                      : i.status === "Overdue"
-                        ? "text-red-600"
-                        : "text-yellow-600"
+                    ? "text-green-600"
+                    : i.status === "Overdue"
+                      ? "text-red-600"
+                      : "text-yellow-600"
                     }`}>
                     {i.status}
                   </td>

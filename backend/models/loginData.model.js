@@ -61,14 +61,12 @@ LoginDataSchema.index({ "users.email": 1 }); // removed unique:true
 // ----------------------
 LoginDataSchema.pre("save", async function (next) {
   try {
-    // Only hash if passwords are new or modified
-    for (let i = 0; i < this.users.length; i++) {
-      const user = this.users[i];
-      // Assume passwords are already hashed before save
-this.totalUsers = this.users.length;
-this.lastUpdated = new Date();
-next();
-
+    for (let user of this.users) {
+      // ✅ Only hash if password is not already hashed
+      if (user.isModified("password") && !user.password.startsWith("$2b$")) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
     }
 
     this.totalUsers = this.users.length;
@@ -79,6 +77,7 @@ next();
     next(err);
   }
 });
+
 
 // ----------------------
 // Instance Methods

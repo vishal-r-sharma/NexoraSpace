@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import SideMenu from "./SideMenu";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   User,
@@ -10,43 +9,92 @@ import {
   Landmark,
   CreditCard,
   Save,
-  CheckCircle2,
-  XCircle,
 } from "lucide-react";
+import api from "../../../api/axios"; // axios instance
 
 function CompanySetting() {
   const [settings, setSettings] = useState({
-    companyName: "NexoraSpace Pvt. Ltd.",
-    companyType: "Private Limited",
-    userName: "Vishal Sharma",
-    email: "vishal@nexoraspace.com",
+    companyName: "",
+    companyType: "",
+    userName: "",
+    email: "",
     password: "********",
-    phone: "+91 98765 43210",
-    companyEmail: "support@nexoraspace.com",
-    website: "https://nexoraspace.com",
-    bankName: "HDFC Bank",
-    accountNumber: "12345678901234",
-    ifscCode: "HDFC0000456",
+    phone: "",
+    companyEmail: "",
+    website: "",
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
   });
 
+  /* ------------------------------------------------------
+     ✅ FETCH COMPANY DETAILS ON LOAD
+  ------------------------------------------------------ */
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const res = await api.get("/api/company/data/settings/check");
+        if (res.data.success && res.data.company) {
+          const c = res.data.company;
+          setSettings({
+            companyName: c.companyName || "",
+            companyType: c.companyType || "",
+            userName: c.userName || "",
+            email: c.loginEmail || "",
+            companyEmail: c.email || "",
+            phone: c.phone || "",
+            website: c.website || "",
+            bankName: c.bankName || "",
+            accountNumber: c.accountNumber || "",
+            ifscCode: c.ifscCode || "",
+            password: "********",
+          });
+        }
+      } catch (err) {
+        console.error("❌ Failed to load company settings:", err);
+      }
+    };
+    fetchCompanyData();
+  }, []);
+
+  /* ------------------------------------------------------
+     ✅ INPUT CHANGE HANDLER
+  ------------------------------------------------------ */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setSettings({ ...settings, [name]: value });
   };
 
-  const handleSave = () => {
-    alert("✅ Settings updated successfully!");
-  };
+  /* ------------------------------------------------------
+     ✅ SAVE SETTINGS (PATCH TO BACKEND)
+  ------------------------------------------------------ */
+  const handleSave = async () => {
+    try {
+      const payload = {
+        companyName: settings.companyName,
+        companyType: settings.companyType,
+        bankName: settings.bankName,
+        accountNumber: settings.accountNumber,
+        ifscCode: settings.ifscCode,
+        email: settings.companyEmail,
+        phone: settings.phone,
+        website: settings.website,
+        loginEmail: settings.email,
+        userName: settings.userName,
+        loginPassword:
+          settings.password !== "********" ? settings.password : undefined,
+      };
 
-  const featureList = [
-    { name: "Employee Management", active: true },
-    { name: "Project Management", active: false },
-    { name: "Billing System", active: true },
-  ];
+      const res = await api.patch("/api/company/data/settings/update", payload);
+      alert(res.data.success ? "✅ " + res.data.message : "⚠️ " + res.data.message);
+    } catch (err) {
+      console.error("❌ Settings update error:", err);
+      alert("❌ Failed to update settings. Please try again.");
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
-      <SideMenu />
 
       <div className="flex-1 p-6 md:p-10 overflow-auto space-y-8">
         {/* Header */}
@@ -75,7 +123,6 @@ function CompanySetting() {
                 onChange={handleChange}
                 icon={<Building2 />}
               />
-
               <Select
                 label="Company Type"
                 name="companyType"
@@ -171,35 +218,17 @@ function CompanySetting() {
           </div>
         </div>
 
-        {/* ---------- Feature Access ---------- */}
-        <Card title="Feature Access Overview">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {featureList.map((feature, i) => (
-              <div
-                key={i}
-                className={`flex items-center justify-between border rounded-xl px-4 py-3 transition-all ${
-                  feature.active
-                    ? "border-green-500 bg-green-50 text-green-700"
-                    : "border-gray-300 bg-gray-50 text-gray-600"
-                }`}
-              >
-                <p className="font-medium text-base">{feature.name}</p>
-                {feature.active ? (
-                  <CheckCircle2 className="text-green-500" size={20} />
-                ) : (
-                  <XCircle className="text-gray-400" size={20} />
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg mt-5 p-3">
-            To activate additional features, contact{" "}
+        {/* ---------- Support Info ---------- */}
+        <Card title="Need Support?">
+          <p className="text-gray-700 text-base leading-relaxed">
+            For any technical or business support, please contact{" "}
             <a
               href="mailto:contact@vishalsharmadev.in"
-              className="font-semibold underline text-blue-600"
+              className="text-blue-600 font-semibold underline"
             >
               contact@vishalsharmadev.in
-            </a>
+            </a>{" "}
+            — our team will be happy to assist you.
           </p>
         </Card>
       </div>
@@ -223,7 +252,7 @@ const Input = ({ label, name, value, onChange, type = "text", icon }) => (
       <input
         type={type}
         name={name}
-        value={value}
+        value={value || ""}
         onChange={onChange}
         className="flex-1 bg-transparent outline-none text-gray-800 font-medium"
       />

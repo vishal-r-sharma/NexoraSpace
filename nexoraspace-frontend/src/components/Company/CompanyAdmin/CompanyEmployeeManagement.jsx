@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import api from "../../../api/axios";
-import SideMenu from "./SideMenu";
 
 /* ---------- Fancy Modal Component ---------- */
 function Modal({ open, title, onClose, children, footer }) {
@@ -351,7 +350,6 @@ function CompanyEmployeeManagement() {
   /* ---------- Render ---------- */
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
-      <SideMenu />
 
       <div className="flex-1 p-6 pt-19 md:p-10 overflow-auto">
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
