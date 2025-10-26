@@ -18,12 +18,15 @@ router.get("/history", companyAuth, async (req, res) => {
         const doc = await CompanyAIChat.findOne({ companyRef }).lean();
         if (!doc) return res.json({ success: true, chats: [] });
 
-        const summaries = doc.chats.map((c) => ({
-            sessionId: c.sessionId,
-            totalMessages: c.messages.length,
-            lastInteractionAt: c.lastInteractionAt,
-            topic: c.topic,
-        }));
+        const summaries = doc.chats
+            .map((c) => ({
+                sessionId: c.sessionId,
+                totalMessages: c.messages.length,
+                lastInteractionAt: c.lastInteractionAt,
+                topic: c.topic,
+            }))
+            .sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
+
 
         res.json({ success: true, chats: summaries });
     } catch (err) {
@@ -118,14 +121,14 @@ router.post("/send", companyAuth, async (req, res) => {
         });
 
         // 🧠 Gemini AI Response
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
-const prompt = `
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+        const prompt = `
 You are Nexora AI Assistant. Be professional and concise.
 User message: ${text}
 `;
 
-const result = await model.generateContent(prompt);
-const aiText = result.response.text() || "I'm here to assist you.";
+        const result = await model.generateContent(prompt);
+        const aiText = result.response.text() || "I'm here to assist you.";
 
         // Add AI reply
         companyChat.chats[chatIndex].messages.push({
@@ -134,7 +137,7 @@ const aiText = result.response.text() || "I'm here to assist you.";
             timestamp: new Date(),
         });
 
-        companyChat.chats[chatIndex].lastInteractionAt = new Date();
+
         companyChat.markModified("chats");
         await companyChat.save();
 

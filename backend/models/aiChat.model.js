@@ -40,9 +40,16 @@ const ChatSubSchema = new mongoose.Schema(
 
 ChatSubSchema.pre("save", function (next) {
   this.totalMessages = this.messages.length;
-  this.lastInteractionAt = new Date();
+
+  // ✅ Only update lastInteractionAt to latest message timestamp (if exists)
+  if (this.messages.length > 0) {
+    const lastMsg = this.messages[this.messages.length - 1];
+    this.lastInteractionAt = lastMsg.timestamp || new Date();
+  }
+
   next();
 });
+
 
 const CompanyAIChatSchema = new mongoose.Schema(
   {
