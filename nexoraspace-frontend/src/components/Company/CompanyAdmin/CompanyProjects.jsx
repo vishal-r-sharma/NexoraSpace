@@ -200,7 +200,25 @@ function CompanyProjects() {
   const openModal = (type, proj = null) => {
     setSelected(proj);
     setModal({ open: true, type });
-    if (proj) setForm(proj);
+    if (proj) {
+      // Ensure documents have IDs and not null
+      setForm({
+        ...proj,
+        documents: Array.isArray(proj.documents)
+          ? proj.documents.map((d) => ({
+            _id: d._id || null,
+            name: d.name || (typeof d === "string" ? d : "Unknown"),
+            fileUrl:
+              typeof d === "object" && d?.fileUrl
+                ? d.fileUrl
+                : typeof d === "string"
+                  ? d
+                  : "",
+          }))
+          : [],
+      });
+    }
+
     else
       setForm({
         name: "",
@@ -290,6 +308,10 @@ function CompanyProjects() {
       console.log("🟢 DELETE RESPONSE:", res.data);
       if (res.data.success) {
         alert("✅ Document deleted successfully!");
+        setForm((prev) => ({
+          ...prev,
+          documents: prev.documents.filter((d) => d._id !== docId),
+        }));
         await fetchProjects();
       } else {
         alert("⚠️ Failed to delete document.");
@@ -549,11 +571,21 @@ function CompanyProjects() {
                               >
                                 <span className="truncate">{fileName}</span>
                                 <button
-                                  onClick={() => deleteDocument(i)}
+                                  onClick={() => {
+                                    const currentDoc = form.documents[i];
+                                    if (currentDoc && currentDoc._id) {
+                                      // If document exists in backend
+                                      deleteDocumentFromServer(selected._id, currentDoc._id);
+                                    } else {
+                                      // If new local file
+                                      deleteDocument(i);
+                                    }
+                                  }}
                                   className="text-red-400 hover:text-red-600 text-xs"
                                 >
                                   Delete
                                 </button>
+
                               </li>
                             );
                           })}
