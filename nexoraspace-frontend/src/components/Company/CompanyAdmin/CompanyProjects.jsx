@@ -283,9 +283,10 @@ function CompanyProjects() {
     if (!window.confirm("Are you sure you want to delete this document?")) return;
     try {
       console.log("🟡 Deleting Document:", projectId, docId);
-      const res = await api.delete(`/company/data/projects/${projectId}/document/${docId}`, {
+      const res = await api.delete(`/api/company/data/projects/${projectId}/document/${docId}`, {
         withCredentials: true,
       });
+
       console.log("🟢 DELETE RESPONSE:", res.data);
       if (res.data.success) {
         alert("✅ Document deleted successfully!");
@@ -662,12 +663,12 @@ function CompanyProjects() {
                           <div className="flex gap-3">
                             <button
                               onClick={() => {
-  if (doc && doc._id) {
-    deleteDocumentFromServer(selected._id, doc._id);
-  } else {
-    alert("⚠️ Cannot delete — invalid document ID.");
-  }
-}}
+                                if (doc && doc._id) {
+                                  deleteDocumentFromServer(selected._id, doc._id);
+                                } else {
+                                  alert("⚠️ Cannot delete — invalid document ID.");
+                                }
+                              }}
 
                               className="text-red-400 hover:text-red-600 text-xs"
                             >
