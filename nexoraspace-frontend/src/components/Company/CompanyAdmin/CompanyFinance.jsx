@@ -73,6 +73,11 @@ function CompanyFinance() {
   const [errors, setErrors] = useState({});
   const [company, setCompany] = useState(null);
 
+  // ✅ Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Show 10 invoices per page
+
+
   const emptyForm = useMemo(
     () => ({
       invoiceNo: "",
@@ -407,6 +412,17 @@ function CompanyFinance() {
       .includes(search.toLowerCase())
   );
 
+  // ✅ Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedInvoices = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
       <div className="flex-1 p-6 md:p-10 overflow-auto space-y-6">
@@ -462,9 +478,23 @@ function CompanyFinance() {
             color="blue"
           />
         </div>
+        <div className="flex justify-end items-center gap-2 mb-2 text-sm text-gray-600">
+          <span>Show:</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className="border rounded px-2 py-1 bg-white text-gray-800"
+          >
+            {[5, 10, 20, 50].map((num) => (
+              <option key={num} value={num}>
+                {num} / page
+              </option>
+            ))}
+          </select>
+        </div>
 
 
-        <div className="bg-white rounded-2xl shadow overflow-x-auto">
+        <div className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
           <table className="w-full text-sm md:text-base">
             <thead className="bg-gray-200 text-gray-700">
               <tr>
@@ -481,8 +511,8 @@ function CompanyFinance() {
             </thead>
 
             <tbody>
-              {filtered.map((i) => (
-                <tr key={i._id} className="border-b hover:bg-gray-50 transition">
+              {paginatedInvoices.map((i) => (
+                <tr key={i._id} className="border-b transition hover:bg-gray-50">
                   <td className="p-3">{i.invoiceNo}</td>
                   <td className="p-3">{i.client}</td>
                   <td className="p-3">{i.projectName || "—"}</td>
@@ -509,7 +539,70 @@ function CompanyFinance() {
               ))}
             </tbody>
           </table>
+
+          <div className="flex items-center gap-2">
+            <span className="text-gray-600 text-sm">Page:</span>
+            <span className="font-medium">{currentPage}</span>
+            <span className="text-gray-500 text-xs">/ {totalPages}</span>
+          </div>
+
+          {/* Pagination Controls */}
+          {filtered.length > 0 && filtered.length > itemsPerPage && (
+            <div className="border-t border-gray-200 mt-4 pt-4">
+              <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+                <p className="text-gray-600 text-sm">
+                  Showing{" "}
+                  <span className="font-semibold text-gray-800">{startIndex + 1}</span> to{" "}
+                  <span className="font-semibold text-gray-800">
+                    {Math.min(startIndex + itemsPerPage, filtered.length)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-800">{filtered.length}</span> invoices
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 transition text-gray-800 cursor-pointer ${currentPage === 1
+                      ? "opacity-40 cursor-not-allowed"
+                      : "hover:bg-gray-100"
+                      }`}
+
+                  >
+                    ‹ Prev
+                  </button>
+
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${currentPage === i + 1
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                        }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 transition ${currentPage === totalPages
+                      ? "opacity-40 cursor-not-allowed"
+                      : "hover:bg-gray-100"
+                      }`}
+                  >
+                    Next ›
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
+
 
         {modal.open && (
           <InvoiceModals
@@ -525,22 +618,34 @@ function CompanyFinance() {
           />
         )}
       </div>
+
     </div>
+
   );
 }
 
 /* ---------- SummaryCard ---------- */
-const SummaryCard = ({ title, value, icon, color }) => (
-  <div className="bg-white rounded-2xl shadow p-5 flex items-center justify-between">
-    <div>
-      <p className="text-gray-500 text-sm">{title}</p>
-      <h2 className={`text-xl font-semibold text-${color}-600`}>
-        {typeof value === "number" ? `₹${value.toLocaleString()}` : value}
-      </h2>
+const SummaryCard = ({ title, value, icon, color }) => {
+  const colorMap = {
+    green: "text-green-600",
+    yellow: "text-yellow-600",
+    red: "text-red-600",
+    blue: "text-blue-600",
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow p-5 flex items-center justify-between">
+      <div>
+        <p className="text-gray-500 text-sm">{title}</p>
+        <h2 className={`text-xl font-semibold ${colorMap[color]}`}>
+          {typeof value === "number" ? `₹${value.toLocaleString()}` : value}
+        </h2>
+      </div>
+      <div className={`${colorMap[color]} h-10 w-10`}>{icon}</div>
     </div>
-    <div className={`text-${color}-500 h-10 w-10`}>{icon}</div>
-  </div>
-);
+  );
+};
+
 
 function InvoiceModals({
   modal,
@@ -768,6 +873,7 @@ function InvoiceModals({
           action cannot be undone.
         </p>
       </Modal>
+
     </>
   );
 }

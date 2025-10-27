@@ -185,6 +185,10 @@ function CompanyEmployeeManagement() {
   const [selected, setSelected] = useState(null);
   const [errors, setErrors] = useState({});
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // show 10 employees per page
+
+
   const positionOptions = [
     "Software Engineer",
     "Senior Engineer",
@@ -347,6 +351,16 @@ function CompanyEmployeeManagement() {
       .includes(search.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedEmployees = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+
   /* ---------- Render ---------- */
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
@@ -389,7 +403,7 @@ function CompanyEmployeeManagement() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((e) => (
+              {paginatedEmployees.map((e) => (
                 <tr key={e._id} className="border-b hover:bg-gray-50 transition">
                   <td className="p-3">{e.name}</td>
                   <td className="p-3">{e.email}</td>
@@ -557,6 +571,39 @@ function CompanyEmployeeManagement() {
               </div>
             </div>
           )}
+          {/* Employee Documents Section */}
+          {selected && selected.documents && selected.documents.length > 0 ? (
+            <div className="mt-4">
+              <strong className="block text-white/80 mb-2">Documents:</strong>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {selected.documents.map((doc, i) => {
+                  const fileName =
+                    typeof doc === "object" ? doc.name : doc;
+                  const fileUrl =
+                    typeof doc === "object"
+                      ? doc.fileUrl?.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/")
+                      : doc;
+
+                  return (
+                    <a
+                      key={i}
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between bg-white/10 hover:bg-white/20 transition rounded-lg px-3 py-2 text-sm"
+                    >
+                      <span className="truncate">{fileName}</span>
+                      <span className="text-blue-400 text-xs ml-2">View</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-white/60 text-sm italic">No documents uploaded.</p>
+          )}
+
+
         </Modal>
 
         {/* Delete Modal */}
@@ -583,6 +630,65 @@ function CompanyEmployeeManagement() {
             <span className="font-semibold">{selected?.name}</span>? This action cannot be undone.
           </p>
         </Modal>
+
+        {/* Pagination Controls */}
+        {filtered.length > itemsPerPage && (
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+            <p className="text-gray-600 text-sm">
+              Showing{" "}
+              <span className="font-semibold text-gray-800">
+                {startIndex + 1}
+              </span>{" "}
+              to{" "}
+              <span className="font-semibold text-gray-800">
+                {Math.min(startIndex + itemsPerPage, filtered.length)}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-gray-800">
+                {filtered.length}
+              </span>{" "}
+              employees
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === 1
+                    ? "opacity-40 cursor-not-allowed"
+                    : "hover:bg-gray-100"
+                  }`}
+              >
+                ‹ Prev
+              </button>
+
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${currentPage === i + 1
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                    }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === totalPages
+                    ? "opacity-40 cursor-not-allowed"
+                    : "hover:bg-gray-100"
+                  }`}
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

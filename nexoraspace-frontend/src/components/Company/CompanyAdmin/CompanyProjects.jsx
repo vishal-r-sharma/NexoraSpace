@@ -67,9 +67,8 @@ function ProjectCard({ project, onView, onEdit, onDelete, onAI }) {
             {project.name}
           </h2>
           <span
-            className={`px-3 py-1 text-xs rounded-full font-medium ${
-              statusColors[project.status] || "bg-gray-100 text-gray-700"
-            }`}
+            className={`px-3 py-1 text-xs rounded-full font-medium ${statusColors[project.status] || "bg-gray-100 text-gray-700"
+              }`}
           >
             {project.status}
           </span>
@@ -152,22 +151,48 @@ function CompanyProjects() {
 
   const allStatuses = ["All", "Planning", "Active", "Completed", "OnHold"];
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6; // Show 6 projects per page
+
+
+
+  // ✅ Form validation helper
+  const isFormValid = () => {
+    return (
+      form.name.trim() &&
+      form.client.trim() &&
+      form.manager.trim() &&
+      form.technology.trim() &&
+      form.team.length > 0 &&
+      form.budget.trim() &&
+      form.startDate &&
+      form.endDate &&
+      form.status.trim() &&
+      form.description.trim()
+    );
+  };
+
+useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}, [currentPage]);
+
+  
   /* ----------------- LOAD PROJECTS ----------------- */
   useEffect(() => {
     fetchProjects();
   }, []);
 
   const fetchProjects = async () => {
-  setLoading(true);
-  try {
-    const res = await api.get("/api/company/data/projects");
-    if (res.data.success) setProjects(res.data.projects);
-  } catch (err) {
-    console.error("❌ Failed to load projects:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const res = await api.get("/api/company/data/projects");
+      if (res.data.success) setProjects(res.data.projects);
+    } catch (err) {
+      console.error("❌ Failed to load projects:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const openModal = (type, proj = null) => {
@@ -193,48 +218,48 @@ function CompanyProjects() {
   const closeModal = () => setModal({ open: false, type: "" });
 
   /* ----------------- SAVE PROJECT ----------------- */
-const saveProject = async () => {
-  try {
-    if (!form.name || !form.client) {
-      alert("Please fill required fields");
-      return;
+  const saveProject = async () => {
+    try {
+      if (!isFormValid()) {
+        alert("⚠️ Please fill all required fields before saving.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("client", form.client);
+      formData.append("manager", form.manager);
+      formData.append("status", form.status);
+      formData.append("budget", form.budget);
+      formData.append("startDate", form.startDate);
+      formData.append("endDate", form.endDate);
+      formData.append("description", form.description);
+      formData.append("technology", form.technology);
+      formData.append("team", form.team.join(","));
+
+      if (form.documents?.length > 0) {
+        form.documents.forEach((file) => {
+          if (file instanceof File) formData.append("documents", file);
+        });
+      }
+
+      if (modal.type === "add") {
+        await api.post("/api/company/data/projects/add", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        await api.put(`/api/company/data/projects/${selected._id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+
+      await fetchProjects();
+      closeModal();
+    } catch (err) {
+      console.error("❌ Save project error:", err);
+      alert("Failed to save project.");
     }
-
-    const formData = new FormData();
-    formData.append("name", form.name);
-    formData.append("client", form.client);
-    formData.append("manager", form.manager);
-    formData.append("status", form.status);
-    formData.append("budget", form.budget);
-    formData.append("startDate", form.startDate);
-    formData.append("endDate", form.endDate);
-    formData.append("description", form.description);
-    formData.append("technology", form.technology);
-    formData.append("team", form.team.join(","));
-
-    if (form.documents?.length > 0) {
-      form.documents.forEach((file) => {
-        if (file instanceof File) formData.append("documents", file);
-      });
-    }
-
-    if (modal.type === "add") {
-      await api.post("/api/company/data/projects/add", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-    } else {
-      await api.put(`/api/company/data/projects/${selected._id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-    }
-
-    await fetchProjects();
-    closeModal();
-  } catch (err) {
-    console.error("❌ Save project error:", err);
-    alert("Failed to save project.");
-  }
-};
+  };
 
 
 
@@ -253,13 +278,13 @@ const saveProject = async () => {
 
   /* ----------------- DOCUMENT UPLOAD ----------------- */
   /* ----------------- DOCUMENT UPLOAD ----------------- */
-const handleDocumentUpload = (e) => {
-  const files = Array.from(e.target.files);
-  setForm((prev) => ({
-    ...prev,
-    documents: [...(prev.documents || []), ...files],
-  }));
-};
+  const handleDocumentUpload = (e) => {
+    const files = Array.from(e.target.files);
+    setForm((prev) => ({
+      ...prev,
+      documents: [...(prev.documents || []), ...files],
+    }));
+  };
 
 
 
@@ -268,6 +293,10 @@ const handleDocumentUpload = (e) => {
     const updatedDocs = form.documents.filter((_, i) => i !== index);
     setForm({ ...form, documents: updatedDocs });
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
 
   const filtered = projects.filter((p) => {
     if (statusFilter !== "All" && p.status !== statusFilter) return false;
@@ -278,6 +307,12 @@ const handleDocumentUpload = (e) => {
       return false;
     return true;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedProjects = filtered.slice(startIndex, startIndex + itemsPerPage);
+
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
@@ -321,7 +356,7 @@ const handleDocumentUpload = (e) => {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filtered.map((proj) => (
+            {paginatedProjects.map((proj) => (
               <ProjectCard
                 key={proj._id}
                 project={proj}
@@ -349,10 +384,15 @@ const handleDocumentUpload = (e) => {
               </button>
               <button
                 onClick={saveProject}
-                className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                disabled={!isFormValid()}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${isFormValid()
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-gray-600 cursor-not-allowed opacity-60"
+                  }`}
               >
                 <Save className="w-4 h-4" /> Save
               </button>
+
             </>
           }
         >
@@ -360,6 +400,7 @@ const handleDocumentUpload = (e) => {
           <div className="grid grid-cols-2 gap-4">
             <input
               type="text"
+              required
               placeholder="Project Name *"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -367,6 +408,7 @@ const handleDocumentUpload = (e) => {
             />
             <input
               type="text"
+              required
               placeholder="Client *"
               value={form.client}
               onChange={(e) => setForm({ ...form, client: e.target.value })}
@@ -374,14 +416,16 @@ const handleDocumentUpload = (e) => {
             />
             <input
               type="text"
-              placeholder="Manager"
+              required
+              placeholder="Manager *"
               value={form.manager}
               onChange={(e) => setForm({ ...form, manager: e.target.value })}
               className="bg-white/10 rounded-lg px-3 py-2 border border-white/20 text-white placeholder-white/60"
             />
             <input
               type="text"
-              placeholder="Technology Stack"
+              required
+              placeholder="Technology Stack *"
               value={form.technology}
               onChange={(e) =>
                 setForm({ ...form, technology: e.target.value })
@@ -390,7 +434,8 @@ const handleDocumentUpload = (e) => {
             />
             <input
               type="text"
-              placeholder="Team Members (comma separated)"
+              required
+              placeholder="Team Members (comma separated) *"
               value={form.team.join(", ")}
               onChange={(e) =>
                 setForm({
@@ -402,6 +447,7 @@ const handleDocumentUpload = (e) => {
             />
             <input
               type="text"
+              required
               placeholder="Budget *"
               value={form.budget}
               onChange={(e) => setForm({ ...form, budget: e.target.value })}
@@ -409,18 +455,21 @@ const handleDocumentUpload = (e) => {
             />
             <input
               type="date"
+              required
               value={form.startDate?.slice(0, 10)}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
               className="bg-white/10 rounded-lg px-3 py-2 border border-white/20 text-white"
             />
             <input
               type="date"
+              required
               value={form.endDate?.slice(0, 10)}
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
               className="bg-white/10 rounded-lg px-3 py-2 border border-white/20 text-white"
             />
             <select
               value={form.status}
+              required
               onChange={(e) => setForm({ ...form, status: e.target.value })}
               className="bg-white/10 rounded-lg px-3 py-2 border border-white/20 text-white col-span-2"
             >
@@ -432,7 +481,8 @@ const handleDocumentUpload = (e) => {
             </select>
             <textarea
               rows="3"
-              placeholder="Project Description"
+              required
+              placeholder="Project Description *"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
@@ -454,11 +504,17 @@ const handleDocumentUpload = (e) => {
               {form.documents.length > 0 && (
                 <ul className="mt-3 space-y-2 text-sm">
                   {form.documents.length > 0 && (
+                    <ul className="mt-3 space-y-2 text-sm">
+                      {form.documents.length > 0 && (
   <ul className="mt-3 space-y-2 text-sm">
     {form.documents.map((doc, i) => {
       const fileName =
         doc?.name ||
-        (doc instanceof File ? doc.name : typeof doc === "string" ? doc : "Unknown file");
+        (doc instanceof File
+          ? doc.name
+          : typeof doc === "string"
+          ? doc
+          : "Unknown file");
 
       return (
         <li
@@ -477,6 +533,9 @@ const handleDocumentUpload = (e) => {
     })}
   </ul>
 )}
+
+                    </ul>
+                  )}
 
 
                 </ul>
@@ -500,48 +559,89 @@ const handleDocumentUpload = (e) => {
           }
         >
           {selected && (
-            <div className="space-y-3 text-white/90">
-              <h2 className="text-2xl font-bold">{selected.name}</h2>
-              <p className="text-white/70">{selected.description}</p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="space-y-4 text-white/90">
+              {/* Header */}
+              <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                <h2 className="text-2xl font-bold tracking-wide">
+                  {selected.name}
+                </h2>
+                <span
+                  className={`px-3 py-1 text-xs rounded-full ${selected.status === "Active"
+                      ? "bg-green-500/20 text-green-300"
+                      : selected.status === "Planning"
+                        ? "bg-yellow-500/20 text-yellow-300"
+                        : selected.status === "Completed"
+                          ? "bg-blue-500/20 text-blue-300"
+                          : "bg-gray-500/20 text-gray-300"
+                    }`}
+                >
+                  {selected.status}
+                </span>
+              </div>
+
+              {/* Description */}
+              <p className="text-white/70 text-sm leading-relaxed">
+                {selected.description || "No description provided."}
+              </p>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <p>
-                  <strong>Client:</strong> {selected.client}
+                  <strong className="text-white/80">Client:</strong> {selected.client}
                 </p>
                 <p>
-                  <strong>Manager:</strong> {selected.manager}
+                  <strong className="text-white/80">Manager:</strong> {selected.manager}
                 </p>
                 <p>
-                  <strong>Status:</strong> {selected.status}
+                  <strong className="text-white/80">Budget:</strong> {selected.budget}
                 </p>
                 <p>
-                  <strong>Budget:</strong> {selected.budget}
+                  <strong className="text-white/80">Technology:</strong> {selected.technology}
                 </p>
                 <p>
-                  <strong>Timeline:</strong> {selected.startDate?.slice(0, 10)} →{" "}
-                  {selected.endDate?.slice(0, 10)}
+                  <strong className="text-white/80">Timeline:</strong>{" "}
+                  {selected.startDate?.slice(0, 10)} → {selected.endDate?.slice(0, 10)}
                 </p>
                 <p>
-                  <strong>Technology:</strong> {selected.technology}
+                  <strong className="text-white/80">Team Members:</strong>{" "}
+                  {selected.team?.length > 0 ? selected.team.join(", ") : "—"}
                 </p>
               </div>
-              {selected.team && (
-                <p>
-                  <strong>Team Members:</strong> {selected.team.join(", ")}
-                </p>
-              )}
-              {selected.documents?.length > 0 && (
-                <div>
-                  <strong>Documents:</strong>
-                  <ul className="list-disc ml-6 mt-2 text-sm space-y-1">
-                    {selected.documents.map((d, i) => (
-                      <li key={i}>{d}</li>
-                    ))}
-                  </ul>
+
+              {/* Documents Section */}
+              {selected.documents?.length > 0 ? (
+                <div className="mt-4">
+                  <strong className="block text-white/80 mb-2">Documents:</strong>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {selected.documents.map((doc, i) => {
+                      const isObj = typeof doc === "object" && doc !== null;
+                      const fileName = isObj ? doc.name : doc;
+                      const fileUrl = isObj
+                        ? doc.fileUrl?.replace(/.*uploads/, "/uploads") // make it relative
+                        : doc;
+
+                      return (
+                        <a
+                          key={i}
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between bg-white/10 hover:bg-white/20 transition rounded-lg px-3 py-2 text-sm"
+                        >
+                          <span className="truncate">{fileName}</span>
+                          <span className="text-blue-400 text-xs ml-2">View</span>
+                        </a>
+                      );
+                    })}
+                  </div>
                 </div>
+              ) : (
+                <p className="text-white/60 text-sm italic">No documents uploaded.</p>
               )}
             </div>
           )}
         </Modal>
+
 
         {/* ---------------- DELETE MODAL ---------------- */}
         <Modal
@@ -571,8 +671,73 @@ const handleDocumentUpload = (e) => {
             cannot be undone.
           </p>
         </Modal>
+
+        {/* Pagination Controls */}
+        {filtered.length > itemsPerPage && (
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-10 gap-4">
+            {/* Left: Page info */}
+            <p className="text-gray-600 text-sm">
+              Showing{" "}
+              <span className="font-semibold text-gray-800">
+                {startIndex + 1}
+              </span>{" "}
+              to{" "}
+              <span className="font-semibold text-gray-800">
+                {Math.min(startIndex + itemsPerPage, filtered.length)}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-gray-800">
+                {filtered.length}
+              </span>{" "}
+              projects
+            </p>
+
+            {/* Right: Pagination buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === 1
+                    ? "opacity-40 cursor-not-allowed"
+                    : "hover:bg-gray-100"
+                  }`}
+              >
+                ‹ Prev
+              </button>
+
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${currentPage === i + 1
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                    }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === totalPages
+                    ? "opacity-40 cursor-not-allowed"
+                    : "hover:bg-gray-100"
+                  }`}
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        )}
+
+
       </div>
+
     </div>
+
+
   );
 }
 

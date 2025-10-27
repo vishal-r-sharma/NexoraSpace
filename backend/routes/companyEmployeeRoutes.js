@@ -72,7 +72,7 @@ router.post("/add", companyAuth, upload.array("documents"), async (req, res) => 
         await fs.move(file.path, targetPath, { overwrite: true });
         updatedDocs.push({
           name: file.originalname,
-          fileUrl: targetPath.replace(/\\/g, "/"),
+          fileUrl: targetPath.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/"),
         });
       }
     }
@@ -169,7 +169,7 @@ router.put("/:companyRef/:employeeId", companyAuth, upload.array("documents"), a
         await fs.move(file.path, targetPath, { overwrite: true });
         emp.documents.push({
           name: file.originalname,
-          fileUrl: targetPath.replace(/\\/g, "/"),
+          fileUrl: targetPath.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/"),
         });
       }
     }

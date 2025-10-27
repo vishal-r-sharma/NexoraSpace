@@ -3,6 +3,8 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const connectDB = require("./config/mongoose_connection");
+const path = require("path");
+
 
 const authRoutes = require("./routes/authRoutes");
 const SystemRoutes = require("./routes/SystemRoutes");
@@ -30,6 +32,8 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 connectDB();
 
