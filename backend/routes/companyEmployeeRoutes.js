@@ -154,6 +154,12 @@ router.put("/:companyRef/:employeeId", companyAuth, upload.array("documents"), a
     if (emp.name !== name && await fs.pathExists(oldPath)) {
       await fs.move(oldPath, newPath, { overwrite: true });
       console.log(`📁 Employee folder renamed: ${oldEmployeeFolder} → ${newEmployeeFolder}`);
+
+      // ✅ Update all document paths inside employee
+      emp.documents = emp.documents.map((d) => ({
+        ...d,
+        fileUrl: d.fileUrl.replace(oldEmployeeFolder, newEmployeeFolder),
+      }));
     } else {
       // Ensure the correct folder exists
       await fs.ensureDir(newPath);
@@ -205,9 +211,13 @@ router.delete("/:companyRef/:employeeId/document/:docId", companyAuth, async (re
     const doc = emp.documents.id(docId);
     if (!doc) return res.status(404).json({ success: false, message: "Document not found" });
 
-    // Delete physical file
-    if (doc.fileUrl && (await fs.pathExists(doc.fileUrl))) {
-      await fs.remove(doc.fileUrl);
+    // ✅ Delete physical file (convert relative -> absolute)
+    if (doc.fileUrl) {
+      const absolutePath = path.join(__dirname, `..${doc.fileUrl}`);
+      if (await fs.pathExists(absolutePath)) {
+        await fs.remove(absolutePath);
+        console.log("🗑️ Deleted file:", absolutePath);
+      }
     }
 
     // Remove from array

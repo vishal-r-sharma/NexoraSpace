@@ -38,9 +38,7 @@ router.get("/", companyAuth, async (req, res) => {
   try {
     const companyRef = req.companyUser?.companyRef;
     if (!companyRef)
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing companyRef" });
+      return res.status(400).json({ success: false, message: "Missing companyRef" });
 
     const projects = await CompanyProject.findOne({ companyRef }).lean();
     res.json({ success: true, projects: projects?.projects || [] });
@@ -57,9 +55,7 @@ router.post("/add", companyAuth, upload.array("documents"), async (req, res) => 
   try {
     const companyRef = req.companyUser?.companyRef;
     if (!companyRef)
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing companyRef" });
+      return res.status(400).json({ success: false, message: "Missing companyRef" });
 
     const {
       name,
@@ -75,14 +71,11 @@ router.post("/add", companyAuth, upload.array("documents"), async (req, res) => 
     } = req.body;
 
     if (!name || !client)
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing required fields" });
+      return res.status(400).json({ success: false, message: "Missing required fields" });
 
     let projectDoc = await CompanyProject.findOne({ companyRef });
     if (!projectDoc) projectDoc = await CompanyProject.create({ companyRef });
 
-    // Add new project
     const newProject = {
       name,
       client,
@@ -103,13 +96,9 @@ router.post("/add", companyAuth, upload.array("documents"), async (req, res) => 
     const company = await CompanyDetail.findById(companyRef).lean();
     const companyFolder = `${company.companyName.replace(/\s+/g, "_")}_${companyRef}`;
     const projectFolder = `${project.name.replace(/\s+/g, "_")}_${project._id}`;
-    const finalDir = path.join(
-      __dirname,
-      `../uploads/${companyFolder}/projects/${projectFolder}`
-    );
+    const finalDir = path.join(__dirname, `../uploads/${companyFolder}/projects/${projectFolder}`);
     await fs.ensureDir(finalDir);
 
-    // Move uploaded files
     const docs = [];
     if (req.files?.length) {
       for (const file of req.files) {
@@ -117,11 +106,12 @@ router.post("/add", companyAuth, upload.array("documents"), async (req, res) => 
         await fs.move(file.path, target, { overwrite: true });
         docs.push({
           name: file.originalname,
-          fileUrl: target.replace(/\\/g, "/"),
+          fileUrl: target.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/"),
           uploadedAt: new Date(),
         });
       }
     }
+
     project.documents = docs;
     await projectDoc.save();
 
@@ -137,17 +127,14 @@ router.post("/add", companyAuth, upload.array("documents"), async (req, res) => 
 });
 
 /* ---------------------------------------------------
-   ✅ UPDATE PROJECT
-   Handles document upload + folder rename if project name changes
+   ✅ UPDATE PROJECT (Auto-Rename Folder + Fix URLs + Add Docs)
 --------------------------------------------------- */
 router.put("/:projectId", companyAuth, upload.array("documents"), async (req, res) => {
   try {
     const companyRef = req.companyUser?.companyRef;
     const { projectId } = req.params;
     if (!companyRef)
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing companyRef" });
+      return res.status(400).json({ success: false, message: "Missing companyRef" });
 
     const projectDoc = await CompanyProject.findOne({ companyRef });
     if (!projectDoc)
@@ -172,25 +159,28 @@ router.put("/:projectId", companyAuth, upload.array("documents"), async (req, re
 
     const company = await CompanyDetail.findById(companyRef).lean();
     const companyFolder = `${company.companyName.replace(/\s+/g, "_")}_${companyRef}`;
+    const basePath = path.join(__dirname, `../uploads/${companyFolder}/projects`);
 
-    // Old folder path
-    const oldFolder = path.join(
-      __dirname,
-      `../uploads/${companyFolder}/projects/${project.name.replace(/\s+/g, "_")}_${projectId}`
-    );
-    // New folder path (in case name changed)
-    const newFolder = path.join(
-      __dirname,
-      `../uploads/${companyFolder}/projects/${name.replace(/\s+/g, "_")}_${projectId}`
-    );
+    const oldFolderName = `${project.name.replace(/\s+/g, "_")}_${projectId}`;
+    const newFolderName = `${name.replace(/\s+/g, "_")}_${projectId}`;
+    const oldFolderPath = path.join(basePath, oldFolderName);
+    const newFolderPath = path.join(basePath, newFolderName);
 
-    // Rename folder if name changed
-    if (project.name !== name && (await fs.pathExists(oldFolder))) {
-      await fs.move(oldFolder, newFolder, { overwrite: true });
+    // ✅ Rename project folder if project name changed
+    if (project.name !== name && (await fs.pathExists(oldFolderPath))) {
+      await fs.move(oldFolderPath, newFolderPath, { overwrite: true });
+      console.log(`📁 Folder renamed: ${oldFolderName} → ${newFolderName}`);
+
+      // ✅ Update all stored document URLs after rename
+      project.documents = project.documents.map((d) => ({
+        ...d,
+        fileUrl: d.fileUrl.replace(oldFolderName, newFolderName),
+      }));
+    } else {
+      await fs.ensureDir(newFolderPath);
     }
-    await fs.ensureDir(newFolder);
 
-    // Update project fields
+    // ✅ Update fields
     Object.assign(project, {
       name,
       client,
@@ -204,23 +194,24 @@ router.put("/:projectId", companyAuth, upload.array("documents"), async (req, re
       team: team ? team.split(",").map((t) => t.trim()) : project.team,
     });
 
-    // Upload new documents
+    // ✅ Upload and attach new documents
     if (req.files?.length > 0) {
       for (const file of req.files) {
-        const dest = path.join(newFolder, file.filename);
+        const dest = path.join(newFolderPath, file.filename);
         await fs.move(file.path, dest, { overwrite: true });
         project.documents.push({
           name: file.originalname,
-          fileUrl: dest.replace(/\\/g, "/"),
+          fileUrl: dest.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/"),
           uploadedAt: new Date(),
         });
       }
     }
 
     await projectDoc.save();
+
     res.json({
       success: true,
-      message: "✅ Project updated successfully (including folder rename)",
+      message: "✅ Project updated successfully (folder + file URLs fixed)",
       project,
     });
   } catch (err) {
@@ -228,6 +219,53 @@ router.put("/:projectId", companyAuth, upload.array("documents"), async (req, re
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+/* ---------------------------------------------------
+   ✅ DELETE SINGLE DOCUMENT FROM PROJECT
+--------------------------------------------------- */
+router.delete("/:projectId/document/:docId", companyAuth, async (req, res) => {
+  try {
+    const companyRef = req.companyUser?.companyRef;
+    const { projectId, docId } = req.params;
+    console.log("🟢 DELETE CALLED:", { projectId, docId, companyRef });
+
+    const projectDoc = await CompanyProject.findOne({ companyRef });
+    if (!projectDoc) return res.status(404).json({ success: false, message: "Company not found" });
+
+    const project = projectDoc.projects.id(projectId);
+    if (!project) return res.status(404).json({ success: false, message: "Project not found" });
+
+    const doc = project.documents.id(docId);
+    if (!doc) return res.status(404).json({ success: false, message: "Document not found" });
+
+    if (doc.fileUrl) {
+      const uploadsDir = path.resolve(__dirname, "../uploads");
+      const relativePath = doc.fileUrl.replace(/^\/?uploads[\\/]/, "");
+      const absolutePath = path.join(uploadsDir, relativePath);
+
+      console.log("🧭 fileUrl:", doc.fileUrl);
+      console.log("📂 absolutePath:", absolutePath);
+
+      if (await fs.pathExists(absolutePath)) {
+        await fs.remove(absolutePath);
+        console.log("🗑️ File deleted successfully:", absolutePath);
+      } else {
+        console.log("⚠️ File not found at:", absolutePath);
+      }
+    }
+
+    // Remove document record
+    project.documents.pull({ _id: docId });
+    await projectDoc.save();
+
+    res.json({ success: true, message: "✅ Document deleted successfully" });
+  } catch (err) {
+    console.error("❌ DELETE /projects/:projectId/document/:docId:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
 
 /* ---------------------------------------------------
    ✅ DELETE PROJECT + Folder Cleanup
@@ -252,12 +290,16 @@ router.delete("/:projectId", companyAuth, async (req, res) => {
       `../uploads/${companyFolder}/projects/${project.name.replace(/\s+/g, "_")}_${projectId}`
     );
 
-    if (await fs.pathExists(folder)) await fs.remove(folder);
+    // ✅ Remove entire project folder
+    if (await fs.pathExists(folder)) {
+      await fs.remove(folder);
+      console.log("🗑️ Folder deleted:", folder);
+    }
 
     project.deleteOne();
     await projectDoc.save();
 
-    res.json({ success: true, message: "✅ Project and folder deleted" });
+    res.json({ success: true, message: "✅ Project & folder deleted" });
   } catch (err) {
     console.error("❌ DELETE /projects:", err);
     res.status(500).json({ success: false, message: err.message });
