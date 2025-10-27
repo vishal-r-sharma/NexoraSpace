@@ -278,22 +278,27 @@ function CompanyProjects() {
     }
   };
 
-  // ✅ Delete a single document from project
-const deleteDocumentFromServer = async (projectId, docId) => {
-  if (!window.confirm("Are you sure you want to delete this document?")) return;
-  try {
-    const res = await api.delete(`/api/company/data/projects/${projectId}/document/${docId}`);
-    if (res.data.success) {
-      alert("✅ Document deleted successfully!");
-      await fetchProjects();
-    } else {
-      alert("⚠️ Failed to delete document.");
+  // Delete a single document from project
+  const deleteDocumentFromServer = async (projectId, docId) => {
+    if (!window.confirm("Are you sure you want to delete this document?")) return;
+    try {
+      console.log("🟡 Deleting Document:", projectId, docId);
+      const res = await api.delete(`/company/data/projects/${projectId}/document/${docId}`, {
+        withCredentials: true,
+      });
+      console.log("🟢 DELETE RESPONSE:", res.data);
+      if (res.data.success) {
+        alert("✅ Document deleted successfully!");
+        await fetchProjects();
+      } else {
+        alert("⚠️ Failed to delete document.");
+      }
+    } catch (err) {
+      console.error("❌ Document delete error:", err.response?.data || err.message);
+      alert("Failed to delete document.");
     }
-  } catch (err) {
-    console.error("❌ Document delete error:", err);
-    alert("Failed to delete document.");
-  }
-};
+  };
+
 
 
   /* ----------------- DOCUMENT UPLOAD ----------------- */
@@ -643,34 +648,41 @@ const deleteDocumentFromServer = async (projectId, docId) => {
 
                       return (
                         <div
-  key={i}
-  className="flex items-center justify-between bg-white/10 hover:bg-white/20 transition rounded-lg px-3 py-2 text-sm"
->
-  <a
-    href={fileUrl}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="truncate text-blue-300 hover:text-blue-400"
-  >
-    {fileName}
-  </a>
-  <div className="flex gap-3">
-    <button
-      onClick={() => deleteDocumentFromServer(selected._id, doc._id)}
-      className="text-red-400 hover:text-red-600 text-xs"
-    >
-      Delete
-    </button>
-    <a
-      href={fileUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-400 hover:text-blue-600 text-xs"
-    >
-      View
-    </a>
-  </div>
-</div>
+                          key={i}
+                          className="flex items-center justify-between bg-white/10 hover:bg-white/20 transition rounded-lg px-3 py-2 text-sm"
+                        >
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="truncate text-blue-300 hover:text-blue-400"
+                          >
+                            {fileName}
+                          </a>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => {
+  if (doc && doc._id) {
+    deleteDocumentFromServer(selected._id, doc._id);
+  } else {
+    alert("⚠️ Cannot delete — invalid document ID.");
+  }
+}}
+
+                              className="text-red-400 hover:text-red-600 text-xs"
+                            >
+                              Delete
+                            </button>
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-600 text-xs"
+                            >
+                              View
+                            </a>
+                          </div>
+                        </div>
 
                       );
                     })}

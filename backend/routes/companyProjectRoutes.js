@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const multer = require("multer");
 const fs = require("fs-extra");
@@ -105,10 +106,12 @@ router.post("/add", companyAuth, upload.array("documents"), async (req, res) => 
         const target = path.join(finalDir, file.filename);
         await fs.move(file.path, target, { overwrite: true });
         docs.push({
+          _id: new mongoose.Types.ObjectId(),
           name: file.originalname,
           fileUrl: target.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/"),
           uploadedAt: new Date(),
         });
+
       }
     }
 
