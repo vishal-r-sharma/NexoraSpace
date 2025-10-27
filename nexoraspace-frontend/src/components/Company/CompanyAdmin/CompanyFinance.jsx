@@ -20,6 +20,17 @@ import defaultlogo from "../../../assets/logo-white.png"
 
 /* ---------- Fancy Modal ---------- */
 function Modal({ open, title, onClose, children, footer }) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [open]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/40">
@@ -138,12 +149,24 @@ function CompanyFinance() {
   const validate = () => {
     const e = {};
     if (!form.client) e.client = "Client name required";
-    if (!form.amount) e.amount = "Amount required";
+    if (!form.clientEmail) e.clientEmail = "Client email required";
+    if (!form.clientAddress) e.clientAddress = "Client address required";
+    if (!form.projectName) e.projectName = "Project name required";
     if (!form.issueDate) e.issueDate = "Select issue date";
     if (!form.dueDate) e.dueDate = "Select due date";
+    if (form.amount === "" || form.amount === null) e.amount = "Amount required";
+    if (form.amount < 0) e.amount = "Invalid amount";
+    if (form.paidAmount < 0) e.paidAmount = "Invalid paid amount";
+    if (!form.paymentTerms) e.paymentTerms = "Payment terms required";
+    if (!form.description) e.description = "Description required";
+
+    if (form.paidAmount > form.amount)
+      e.paidAmount = "Paid amount cannot exceed total amount";
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
+
 
   const saveInvoice = async () => {
     if (!validate() || !company?._id) return;
@@ -518,8 +541,9 @@ function CompanyFinance() {
                   <td className="p-3">{i.projectName || "—"}</td>
                   <td className="p-3">{i.issueDate ? new Date(i.issueDate).toLocaleDateString("en-IN") : "—"}</td>
                   <td className="p-3">{i.dueDate ? new Date(i.dueDate).toLocaleDateString("en-IN") : "—"}</td>
-                  <td className="p-3">₹{i.amount.toLocaleString()}</td>
-                  <td className="p-3">₹{i.paidAmount.toLocaleString()}</td>
+                  <td className="p-3">₹{(i.amount || 0).toLocaleString()}</td>
+                  <td className="p-3">₹{(i.paidAmount || 0).toLocaleString()}</td>
+
                   <td className={`p-3 font-medium ${i.status === "Paid"
                     ? "text-green-600"
                     : i.status === "Overdue"
@@ -691,43 +715,53 @@ function InvoiceModals({
               className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-gray-400 cursor-not-allowed"
             />
           </Field>
+
           <Field label="Client Name" required error={errors.client}>
             <input
               type="text"
+              required
               value={form.client}
               onChange={(e) => setForm({ ...form, client: e.target.value })}
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
-          <Field label="Client Email">
+
+          <Field label="Client Email" required error={errors.clientEmail}>
             <input
               type="email"
-              value={form.clientEmail}
+              required
+              value={form.clientEmail || ""}
               onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
-          <Field label="Client Address">
+
+          <Field label="Client Address" required error={errors.clientAddress}>
             <textarea
               rows="2"
-              value={form.clientAddress}
+              required
+              value={form.clientAddress || ""}
               onChange={(e) => setForm({ ...form, clientAddress: e.target.value })}
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
-          <Field label="Project Name">
+
+          <Field label="Project Name" required error={errors.projectName}>
             <input
               type="text"
-              value={form.projectName}
+              required
+              value={form.projectName || ""}
               onChange={(e) => setForm({ ...form, projectName: e.target.value })}
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Issue Date" required error={errors.issueDate}>
               <input
                 type="date"
-                value={form.issueDate}
+                required
+                value={form.issueDate || ""}
                 onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
                 className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
               />
@@ -735,55 +769,76 @@ function InvoiceModals({
             <Field label="Due Date" required error={errors.dueDate}>
               <input
                 type="date"
-                value={form.dueDate}
+                required
+                value={form.dueDate || ""}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                 className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
               />
             </Field>
           </div>
-          <Field label="Total Amount" required error={errors.amount}>
+
+          <Field label="Total Amount (₹)" required error={errors.amount}>
             <input
               type="number"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+              required
+              min="0"
+              step="0.01"
+              value={form.amount ?? ""}
+              onChange={(e) =>
+                setForm({ ...form, amount: e.target.value === "" ? "" : Number(e.target.value) })
+              }
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
-          <Field label="Paid Amount">
+
+          <Field label="Paid Amount (₹)" required error={errors.paidAmount}>
             <input
               type="number"
-              value={form.paidAmount || ""}
-              onChange={(e) => setForm({ ...form, paidAmount: Number(e.target.value) })}
+              required
+              min="0"
+              step="0.01"
+              value={form.paidAmount ?? ""}
+              onChange={(e) =>
+                setForm({ ...form, paidAmount: e.target.value === "" ? "" : Number(e.target.value) })
+              }
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
-          <Field label="Payment Terms">
+
+          <Field label="Payment Terms" required error={errors.paymentTerms}>
             <input
               type="text"
-              value={form.paymentTerms}
+              required
+              value={form.paymentTerms || ""}
               onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
+              placeholder="e.g. Net 15 days, Advance, etc."
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
-          <Field label="Notes">
+
+          <Field label="Notes / Remarks">
             <textarea
               rows="2"
-              value={form.notes}
+              value={form.notes || ""}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             />
           </Field>
-          <Field label="Description">
+
+          <Field label="Description" required error={errors.description}>
             <textarea
               rows="3"
-              value={form.description}
+              required
+              value={form.description || ""}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             ></textarea>
           </Field>
-          <Field label="Status">
+
+          <Field label="Status" required>
             <select
-              value={form.status}
+              required
+              value={form.status || "Pending"}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
               className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 focus:ring-2 focus:ring-blue-500"
             >
@@ -796,6 +851,7 @@ function InvoiceModals({
           </Field>
         </div>
       </Modal>
+
 
       {/* VIEW */}
       <Modal
