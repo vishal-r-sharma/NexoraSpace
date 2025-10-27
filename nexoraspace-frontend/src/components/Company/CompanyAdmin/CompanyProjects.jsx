@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import api from "../../../api/axios";
 
+const BACKEND_BASE_URL = "https://api.nexoraspace.vishalsharmadev.in";
+
 /* ----------------- MODERN MODAL ----------------- */
 function Modal({ open, title, onClose, children, footer }) {
   if (!open) return null;
@@ -172,11 +174,11 @@ function CompanyProjects() {
     );
   };
 
-useEffect(() => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}, [currentPage]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage]);
 
-  
+
   /* ----------------- LOAD PROJECTS ----------------- */
   useEffect(() => {
     fetchProjects();
@@ -386,8 +388,8 @@ useEffect(() => {
                 onClick={saveProject}
                 disabled={!isFormValid()}
                 className={`px-4 py-2 rounded-lg flex items-center gap-2 ${isFormValid()
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-600 cursor-not-allowed opacity-60"
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-gray-600 cursor-not-allowed opacity-60"
                   }`}
               >
                 <Save className="w-4 h-4" /> Save
@@ -506,33 +508,33 @@ useEffect(() => {
                   {form.documents.length > 0 && (
                     <ul className="mt-3 space-y-2 text-sm">
                       {form.documents.length > 0 && (
-  <ul className="mt-3 space-y-2 text-sm">
-    {form.documents.map((doc, i) => {
-      const fileName =
-        doc?.name ||
-        (doc instanceof File
-          ? doc.name
-          : typeof doc === "string"
-          ? doc
-          : "Unknown file");
+                        <ul className="mt-3 space-y-2 text-sm">
+                          {form.documents.map((doc, i) => {
+                            const fileName =
+                              doc?.name ||
+                              (doc instanceof File
+                                ? doc.name
+                                : typeof doc === "string"
+                                  ? doc
+                                  : "Unknown file");
 
-      return (
-        <li
-          key={i}
-          className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2"
-        >
-          <span className="truncate">{fileName}</span>
-          <button
-            onClick={() => deleteDocument(i)}
-            className="text-red-400 hover:text-red-600 text-xs"
-          >
-            Delete
-          </button>
-        </li>
-      );
-    })}
-  </ul>
-)}
+                            return (
+                              <li
+                                key={i}
+                                className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2"
+                              >
+                                <span className="truncate">{fileName}</span>
+                                <button
+                                  onClick={() => deleteDocument(i)}
+                                  className="text-red-400 hover:text-red-600 text-xs"
+                                >
+                                  Delete
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
 
                     </ul>
                   )}
@@ -567,12 +569,12 @@ useEffect(() => {
                 </h2>
                 <span
                   className={`px-3 py-1 text-xs rounded-full ${selected.status === "Active"
-                      ? "bg-green-500/20 text-green-300"
-                      : selected.status === "Planning"
-                        ? "bg-yellow-500/20 text-yellow-300"
-                        : selected.status === "Completed"
-                          ? "bg-blue-500/20 text-blue-300"
-                          : "bg-gray-500/20 text-gray-300"
+                    ? "bg-green-500/20 text-green-300"
+                    : selected.status === "Planning"
+                      ? "bg-yellow-500/20 text-yellow-300"
+                      : selected.status === "Completed"
+                        ? "bg-blue-500/20 text-blue-300"
+                        : "bg-gray-500/20 text-gray-300"
                     }`}
                 >
                   {selected.status}
@@ -616,9 +618,10 @@ useEffect(() => {
                     {selected.documents.map((doc, i) => {
                       const isObj = typeof doc === "object" && doc !== null;
                       const fileName = isObj ? doc.name : doc;
+                      // ✅ Use full backend URL for document access
                       const fileUrl = isObj
-                        ? doc.fileUrl?.replace(/.*uploads/, "/uploads") // make it relative
-                        : doc;
+                        ? `${BACKEND_BASE_URL}${doc.fileUrl?.replace(/.*uploads/, "/uploads").replace(/\\/g, "/")}`
+                        : `${BACKEND_BASE_URL}${doc}`;
 
                       return (
                         <a
@@ -698,8 +701,8 @@ useEffect(() => {
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => p - 1)}
                 className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === 1
-                    ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-gray-100"
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-gray-100"
                   }`}
               >
                 ‹ Prev
@@ -710,8 +713,8 @@ useEffect(() => {
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
                   className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${currentPage === i + 1
-                      ? "bg-blue-600 text-white shadow-md"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-200 hover:bg-gray-300 text-gray-800"
                     }`}
                 >
                   {i + 1}
@@ -722,8 +725,8 @@ useEffect(() => {
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((p) => p + 1)}
                 className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === totalPages
-                    ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-gray-100"
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-gray-100"
                   }`}
               >
                 Next ›

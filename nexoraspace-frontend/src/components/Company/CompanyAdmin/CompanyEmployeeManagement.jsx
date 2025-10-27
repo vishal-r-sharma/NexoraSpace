@@ -579,10 +579,13 @@ function CompanyEmployeeManagement() {
                 {selected.documents.map((doc, i) => {
                   const fileName =
                     typeof doc === "object" ? doc.name : doc;
+                  // ✅ FIXED: Always use backend domain for serving documents
+                  const backendBase = "https://api.nexoraspace.vishalsharmadev.in";
                   const fileUrl =
                     typeof doc === "object"
-                      ? doc.fileUrl?.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/")
-                      : doc;
+                      ? `${backendBase}${doc.fileUrl?.replace(/.*uploads[\\/]/, "/uploads/").replace(/\\/g, "/")}`
+                      : `${backendBase}${doc}`;
+
 
                   return (
                     <a
@@ -655,8 +658,8 @@ function CompanyEmployeeManagement() {
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => p - 1)}
                 className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === 1
-                    ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-gray-100"
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-gray-100"
                   }`}
               >
                 ‹ Prev
@@ -667,8 +670,8 @@ function CompanyEmployeeManagement() {
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
                   className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition ${currentPage === i + 1
-                      ? "bg-blue-600 text-white shadow-md"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-200 hover:bg-gray-300 text-gray-800"
                     }`}
                 >
                   {i + 1}
@@ -679,8 +682,8 @@ function CompanyEmployeeManagement() {
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((p) => p + 1)}
                 className={`px-3 py-2 rounded-full border border-gray-300 text-sm flex items-center gap-1 ${currentPage === totalPages
-                    ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-gray-100"
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-gray-100"
                   }`}
               >
                 Next ›
