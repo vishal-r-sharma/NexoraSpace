@@ -134,7 +134,7 @@ export default function SystemAdminLogin() {
               onChange={(e) => setEmail(e.target.value)}
               type="email"
               id="email"
-              placeholder="admin@example.com"
+              placeholder="contact@vishalsharmadev.in"
               className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
               required
               autoComplete="email"
@@ -153,7 +153,7 @@ export default function SystemAdminLogin() {
               onChange={(e) => setPassword(e.target.value)}
               type="password"
               id="password"
-              placeholder="••••••••"
+              placeholder="123456789"
               className="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
               required
               autoComplete="current-password"

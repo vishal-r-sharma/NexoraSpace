@@ -19,28 +19,28 @@ export default function CompanyLogin() {
 
   // ✅ 1️⃣ On Page Load — check if companytoken is valid
   // ✅ 1️⃣ On Page Load — check if companytoken is valid
-useEffect(() => {
-  const verifyToken = async () => {
-    try {
-      console.log("Checking token via backend...");
-      // just ask backend to verify; no need to read cookie manually
-      const res = await api.get("/api/auth/check", { withCredentials: true });
+  useEffect(() => {
+    const verifyToken = async () => {
+      try {
+        console.log("Checking token via backend...");
+        // just ask backend to verify; no need to read cookie manually
+        const res = await api.get("/api/auth/check", { withCredentials: true });
 
-      if (res?.data?.authenticated && res?.data?.user) {
-        const user = res.data.user;
-        console.log("✅ Valid companytoken found for:", user);
-        window.location.href = `/company/${user.role.toLowerCase()}/dashboard/${user._id}/${user.companyRef}`;
-      } else {
-        console.log("❌ Invalid token, show login form");
+        if (res?.data?.authenticated && res?.data?.user) {
+          const user = res.data.user;
+          console.log("✅ Valid companytoken found for:", user);
+          window.location.href = `/company/${user.role.toLowerCase()}/dashboard/${user._id}/${user.companyRef}`;
+        } else {
+          console.log("❌ Invalid token, show login form");
+          setCheckingToken(false);
+        }
+      } catch (err) {
+        console.error("❌ Token check failed:", err.message);
         setCheckingToken(false);
       }
-    } catch (err) {
-      console.error("❌ Token check failed:", err.message);
-      setCheckingToken(false);
-    }
-  };
-  verifyToken();
-}, []);
+    };
+    verifyToken();
+  }, []);
 
 
   // ✅ 2️⃣ Handle Login Submission
@@ -191,7 +191,7 @@ useEffect(() => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="mt-2 w-full rounded-lg bg-gray-950/50 border border-gray-700 px-4 py-2.5 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-yellow-400"
-                  placeholder="you@company.com"
+                  placeholder="admin@zohodemo.in"
                 />
               </div>
 
@@ -206,7 +206,7 @@ useEffect(() => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="mt-2 w-full rounded-lg bg-gray-950/50 border border-gray-700 px-4 py-2.5 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-yellow-400"
-                  placeholder="••••••••"
+                  placeholder="123456789"
                 />
               </div>
 
