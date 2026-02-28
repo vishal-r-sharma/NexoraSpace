@@ -15,6 +15,7 @@ const companyBillingRoutes = require("./routes/companyBillingRoutes");
 const companySettingsRoutes = require("./routes/companySettingsRoutes");
 const companyAIChatRoutes = require("./routes/companyAIChatRoutes");
 const companyProjectsRoutes = require("./routes/companyProjectRoutes");
+const projectAIRoutes = require("./routes/projectAI.routes");
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use("/api/company/data/billing", companyBillingRoutes);
 app.use("/api/company/data/settings", companySettingsRoutes);
 app.use("/api/company/data/aichat", companyAIChatRoutes);
 app.use("/api/company/data/projects", companyProjectsRoutes);
+app.use("/api/company/data/aichat", projectAIRoutes);
 
 
 

@@ -15,9 +15,24 @@ function CompanyAI_General() {
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [viewingChat, setViewingChat] = useState(null);
+  const [projects, setProjects] = useState([]);
+const [selectedProject, setSelectedProject] = useState("");
 
   const chatEndRef = useRef(null);
+useEffect(() => {
+  const loadProjects = async () => {
+    try {
+      const res = await api.get("/api/company/data/projects");
+      if (res.data.success) {
+        setProjects(res.data.projects);
+      }
+    } catch (err) {
+      console.error("❌ Failed to load projects:", err);
+    }
+  };
 
+  loadProjects();
+}, []);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -55,10 +70,17 @@ function CompanyAI_General() {
     setLoading(true);
 
     try {
-      const res = await api.post("/api/company/data/aichat/send", {
-        text: userMsg.text,
-        sessionId,
-      });
+      if (!selectedProject) {
+  alert("Please select a project first.");
+  setLoading(false);
+  return;
+}
+
+const res = await api.post("/api/company/data/aichat/project/send", {
+  text: userMsg.text,
+  sessionId,
+  projectId: selectedProject,
+});
 
       if (res.data.success) {
         setSessionId(res.data.sessionId);
@@ -135,6 +157,18 @@ function CompanyAI_General() {
               New Chat
             </button>
           </div>
+          <select
+  value={selectedProject}
+  onChange={(e) => setSelectedProject(e.target.value)}
+  className="border rounded-lg px-3 py-1 text-sm"
+>
+  <option value="">Select Project</option>
+  {projects.map((project) => (
+    <option key={project._id} value={project._id}>
+      {project.name}
+    </option>
+  ))}
+</select>
         </header>
 
         {/* Messages */}
